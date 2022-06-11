@@ -1,0 +1,116 @@
+repos:
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        args: [
+            --combine-as,
+            --line-length=100,
+            --ensure-newline-before-comments,
+#            --force-single-line-imports,
+            --single-line-exclusions=typing,
+            --trailing-comma,
+            --multi-line=3,
+            --lines-after-imports=2,
+            --use-parentheses,
+        ]
+
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+      - id: black
+        args: [
+            --line-length=120,
+        ]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: forbid-new-submodules
+      - id: fix-encoding-pragma
+        args: [--remove]
+      - id: end-of-file-fixer
+        types_or: [python, cython]
+      - id: trailing-whitespace
+        types_or: [python, cython]
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-xml
+      - id: check-yaml
+
+  -   repo: https://github.com/codespell-project/codespell
+      rev: v2.1.0
+      hooks:
+        - id: codespell
+          description: Checks for common misspellings.
+          types_or: [python, cython, rst, markdown]
+          exclude: "trading/interactive_brokers/contracts.py,trading/adr/pricing/yahoo.py"
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.941
+    hooks:
+      - id: mypy
+        args: [
+            --no-strict-optional,
+            --ignore-missing-imports,
+            --warn-no-return,
+        ]
+        additional_dependencies: [
+            types-orjson,
+            types-pytz,
+            types-redis,
+            types-toml,
+        ]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        name: flake8 (python)
+        additional_dependencies:
+          - flake8-bandit
+          - flake8-bugbear
+          - flake8-coding
+          - flake8-debugger
+          - flake8-deprecated
+          - flake8-pep3101
+          - flake8-string-format
+          - flake8-typing-imports
+        types: [python]
+        args: [
+            --max-complexity=10,
+            --max-line-length=150,
+            --statistics,
+            --ignore=C101 E203 E252 E402 D100 D101 D102 S101 S403 W503,
+            --min-python-version=3.9.0,
+        ]
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.5.0
+    hooks:
+      - id: nbstripout
+
+# Flake8 ignore justifications
+# ----------------------------
+# C101: Coding magic comment not found
+# D100: Missing docstring in public module (picks up entire test suite)
+# D101: Missing docstring in public class (picks up entire test suite)
+# D102: Missing docstring in public method (picks up entire test suite)
+# E203: whitespace before ':' (conflicts with Black)
+# E225: missing whitespace around operator (picks up cython casting)
+# E226: missing whitespace around arithmetic operator (picks up C pointers)
+# E227: missing whitespace around bitwise or shift operator (picks up C pointers)
+# E252: spaces around default argument assignment (incorrect syntax)
+# E402: module level import not at top of file (workaround to assist imports in examples)
+# E999: SyntaxError: invalid syntax (cimport seen as invalid syntax)
+# S101: Use of assert detected (use of assert normal for pytest)
+# S403: Consider possible security implications associated with pickle module (pickle ok!)
+# W503: in error will be amended by flake8 soon (https://www.flake8rules.com/rules/W503.html)
