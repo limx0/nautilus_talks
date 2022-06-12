@@ -1,3 +1,4 @@
+import pathlib
 from typing import Tuple
 
 from nautilus_trader.backtest.engine import CacheConfig
@@ -7,12 +8,16 @@ from nautilus_trader.config import (
     BacktestEngineConfig,
     BacktestRunConfig,
     BacktestVenueConfig,
+    ImportableActorConfig,
     ImportableStrategyConfig,
     RiskEngineConfig,
     StreamingConfig,
 )
 from nautilus_trader.model.data.bar import Bar
 from nautilus_trader.persistence.catalog import DataCatalog
+
+
+CATALOG = DataCatalog(str(pathlib.Path(__file__).parent.joinpath("catalog")))
 
 
 def main(
@@ -26,13 +31,23 @@ def main(
     persistence: bool = False,
     **strategy_kwargs,
 ):
+    # Create model prediction actor
+    prediction = ImportableActorConfig(
+        actor_path="model:PredictedPriceActor",
+        config_path="model:PredictedPriceConfig",
+        config=dict(
+            source_symbol=instrument_ids[0],
+            target_symbol=instrument_ids[1],
+        ),
+    )
+
     # Create strategy
     strategy = ImportableStrategyConfig(
         strategy_path="strategy:PairTrader",
         config_path="strategy:PairTraderConfig",
         config=dict(
-            left_symbol=instrument_ids[0],
-            right_symbol=instrument_ids[1],
+            source_symbol=instrument_ids[0],
+            target_symbol=instrument_ids[1],
             notional_trade_size_usd=notional_trade_size_usd,
             **strategy_kwargs,
         ),
@@ -47,6 +62,7 @@ def main(
         streaming=StreamingConfig(catalog_path=str(catalog.path)) if persistence else None,
         risk_engine=RiskEngineConfig(max_order_rate="1000/00:00:01"),  # type: ignore
         strategies=[strategy],
+        actors=[prediction],
     )
     venues = [
         BacktestVenueConfig(
@@ -78,7 +94,7 @@ def main(
 
 if __name__ == "__main__":
     # typer.run(main)
-    catalog = DataCatalog("./catalog")
+    catalog = CATALOG
     assert not catalog.instruments().empty, "Couldn't load instruments, have you run `poetry run inv extract-catalog`?"
     [result] = main(
         catalog=catalog,
