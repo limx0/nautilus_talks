@@ -6,8 +6,8 @@ from nautilus_trader.model.enums import AggregationSource
 from nautilus_trader.model.identifiers import InstrumentId
 
 
-def make_bar_type(self, instrument_id: InstrumentId) -> BarType:
-    return BarType(instrument_id=instrument_id, bar_spec=self.bar_spec, aggregation_source=AggregationSource.EXTERNAL)
+def make_bar_type(instrument_id: InstrumentId, bar_spec) -> BarType:
+    return BarType(instrument_id=instrument_id, bar_spec=bar_spec, aggregation_source=AggregationSource.EXTERNAL)
 
 
 def one(iterable):

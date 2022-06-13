@@ -5,7 +5,7 @@ from nautilus_trader.common.actor import Actor, ActorConfig
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.core.data import Data
 from nautilus_trader.core.datetime import secs_to_nanos, unix_nanos_to_dt
-from nautilus_trader.model.data.bar import Bar
+from nautilus_trader.model.data.bar import Bar, BarSpecification
 from nautilus_trader.model.data.base import DataType
 from nautilus_trader.model.identifiers import InstrumentId
 from sklearn.linear_model import LinearRegression
@@ -26,6 +26,7 @@ class PredictedPriceActor(Actor):
 
         self.source_id = InstrumentId.from_str(config.source_symbol)
         self.target_id = InstrumentId.from_str(config.target_symbol)
+        self.bar_spec = BarSpecification.from_str(self.config.bar_spec)
         self.model: Optional[LinearRegression] = None
         self.hedge_ratio: Optional[float] = None
         self._min_model_timedelta = secs_to_nanos(pd.Timedelta(self.config.min_model_timedelta).total_seconds())
@@ -37,12 +38,12 @@ class PredictedPriceActor(Actor):
         self.right = self.cache.instrument(self.target_id)
 
         # Subscribe to bars
-        self.subscribe_bars(make_bar_type(instrument_id=self.source_id))
-        self.subscribe_bars(make_bar_type(instrument_id=self.target_id))
+        self.subscribe_bars(make_bar_type(instrument_id=self.source_id, bar_spec=self.bar_spec))
+        self.subscribe_bars(make_bar_type(instrument_id=self.target_id, bar_spec=self.bar_spec))
 
     def on_bar(self, bar: Bar):
         self._check_model_fit(bar)
-        self.predict(bar)
+        self._predict(bar)
 
     @property
     def data_length_valid(self) -> bool:
@@ -54,7 +55,7 @@ class PredictedPriceActor(Actor):
 
     def _check_first_tick(self, instrument_id) -> bool:
         """Check we have enough bar data for this `instrument_id`, according to `min_model_timedelta`"""
-        bars = self.cache.bars(bar_type=make_bar_type(instrument_id))
+        bars = self.cache.bars(bar_type=make_bar_type(instrument_id, bar_spec=self.bar_spec))
         if not bars:
             return False
         delta = self.clock.timestamp_ns() - bars[-1].ts_init
@@ -72,9 +73,9 @@ class PredictedPriceActor(Actor):
         # Generate a dataframe from cached bar data
         df = bars_to_dataframe(
             source_id=self.source_id.value,
-            source_bars=self.cache.bars(bar_type=make_bar_type(self.source_id)),
+            source_bars=self.cache.bars(bar_type=make_bar_type(self.source_id, bar_spec=self.bar_spec)),
             target_id=self.target_id.value,
-            target_bars=self.cache.bars(bar_type=make_bar_type(self.target_id)),
+            target_bars=self.cache.bars(bar_type=make_bar_type(self.target_id, bar_spec=self.bar_spec)),
         )
 
         # Format the arrays for scikit-learn
@@ -82,10 +83,11 @@ class PredictedPriceActor(Actor):
         Y = df.loc[:, self.target_id.value].astype(float).values.reshape(-1, 1)
 
         # Fit a model
-        model = LinearRegression(fit_intercept=False)
-        model.fit(X, Y)
+        self.model = LinearRegression(fit_intercept=False)
+        self.model.fit(X, Y)
         self.log.info(
-            f"Fit model @ {unix_nanos_to_dt(bar.ts_init)}, r2: {r2_score(Y, model.predict(X))}", color=LogColor.BLUE
+            f"Fit model @ {unix_nanos_to_dt(bar.ts_init)}, r2: {r2_score(Y, self.model.predict(X))}",
+            color=LogColor.BLUE,
         )
         self._last_model = unix_nanos_to_dt(bar.ts_init)
 
@@ -95,18 +97,24 @@ class PredictedPriceActor(Actor):
         std_pred = errors.std()
 
         # The model slope is our hedge ratio (the ratio of source
-        hedge_ratio = float(self.model.coef_[0][0])
-        self.log.info(f"Computed {self.hedge_ratio}", color=LogColor.BLUE)
+        self.hedge_ratio = float(self.model.coef_[0][0])
+        self.log.info(f"Computed hedge_ratio={self.hedge_ratio:0.4f}", color=LogColor.BLUE)
 
         # Publish model
-        model_update = ModelUpdate(model=model, hedge_ratio=hedge_ratio, std_prediction=std_pred, ts_init=bar.ts_init)
-        self.publish_data(data_type=DataType(ModelUpdate, metadata={"target": self.target_id}), data=model_update)
+        model_update = ModelUpdate(
+            model=self.model, hedge_ratio=self.hedge_ratio, std_prediction=std_pred, ts_init=bar.ts_init
+        )
+        self.publish_data(
+            data_type=DataType(ModelUpdate, metadata={"instrument_id": self.target_id.value}), data=model_update
+        )
 
     def _predict(self, bar: Bar):
-        if bar.type.instrument_id == self.source_id:
-            pred = self.model.predict([[bar.close]])
+        if self.model is not None and bar.type.instrument_id == self.source_id:
+            pred = self.model.predict([[bar.close]])[0][0]
             prediction = Prediction(instrument_id=self.target_id, prediction=pred, ts_init=bar.ts_init)
-            self.publish_data(data_type=DataType(Prediction, metadata={"target": self.target_id}), data=prediction)
+            self.publish_data(
+                data_type=DataType(Prediction, metadata={"instrument_id": self.target_id.value}), data=prediction
+            )
 
 
 class ModelUpdate(Data):

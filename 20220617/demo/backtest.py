@@ -100,7 +100,7 @@ if __name__ == "__main__":
         catalog=catalog,
         instrument_ids=("SMH.NASDAQ", "SOXX.NASDAQ"),
         log_level="INFO",
-        persistence=True,
-        end_time="2020-02-01",
+        persistence=False,
+        end_time="2020-01-10",
     )
     print(result.instance_id)

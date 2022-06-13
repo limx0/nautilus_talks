@@ -2,19 +2,16 @@ import datetime
 from functools import partial
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 from model import ModelUpdate, Prediction
-from nautilus_trader.adapters.betfair.util import one
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.config import StrategyConfig
 from nautilus_trader.core.data import Data
-from nautilus_trader.core.datetime import secs_to_nanos
 from nautilus_trader.core.message import Event
 from nautilus_trader.model.c_enums.order_side import OrderSideParser
-from nautilus_trader.model.data.bar import Bar, BarSpecification, BarType
+from nautilus_trader.model.data.bar import Bar, BarSpecification
 from nautilus_trader.model.data.base import DataType
-from nautilus_trader.model.enums import AggregationSource, OrderSide, PositionSide, TimeInForce
+from nautilus_trader.model.enums import OrderSide, PositionSide, TimeInForce
 from nautilus_trader.model.events.position import (
     PositionChanged,
     PositionClosed,
@@ -25,36 +22,30 @@ from nautilus_trader.model.identifiers import InstrumentId
 from nautilus_trader.model.objects import Price, Quantity
 from nautilus_trader.model.position import Position
 from nautilus_trader.trading.strategy import Strategy
-from sklearn.linear_model import LinearRegression
+from util import make_bar_type, one
 
 
 class PairTraderConfig(StrategyConfig):
-    left_symbol: str
-    right_symbol: str
+    source_symbol: str
+    target_symbol: str
     notional_trade_size_usd: int = 10_000
     min_model_timedelta: datetime.timedelta = datetime.timedelta(days=1)
-    trade_width_std_dev: float = 1.5
+    trade_width_std_dev: float = 2.5
     bar_spec: str = "10-SECOND-LAST"
 
 
 class PairTrader(Strategy):
     def __init__(self, config: PairTraderConfig):
         super().__init__(config=config)
-        self.source_id = InstrumentId.from_str(config.left_symbol)
-        self.target_id = InstrumentId.from_str(config.right_symbol)
-        self.model: Optional[LinearRegression] = None
-        self.theo_right: Optional[float] = None
+        self.source_id = InstrumentId.from_str(config.source_symbol)
+        self.target_id = InstrumentId.from_str(config.target_symbol)
+        self.model: Optional[ModelUpdate] = None
         self.hedge_ratio: Optional[float] = None
-        self._min_model_timedelta = secs_to_nanos(self.config.min_model_timedelta.total_seconds())
-        self._last_model = pd.Timestamp(0)
+        self.std_pred: Optional[float] = None
+        self.prediction: Optional[float] = None
         self._current_edge: float = 0.0
         self._current_required_edge: float = 0.0
         self.bar_spec = BarSpecification.from_str(self.config.bar_spec)
-
-    def bar_type(self, instrument_id: InstrumentId):
-        return BarType(
-            instrument_id=instrument_id, bar_spec=self.bar_spec, aggregation_source=AggregationSource.EXTERNAL
-        )
 
     def on_start(self):
         # Set instruments
@@ -62,16 +53,16 @@ class PairTrader(Strategy):
         self.target = self.cache.instrument(self.target_id)
 
         # Subscribe to bars
-        self.subscribe_bars(self.bar_type(instrument_id=self.source_id))
-        self.subscribe_bars(self.bar_type(instrument_id=self.target_id))
+        self.subscribe_bars(make_bar_type(instrument_id=self.source_id, bar_spec=self.bar_spec))
+        self.subscribe_bars(make_bar_type(instrument_id=self.target_id, bar_spec=self.bar_spec))
 
         # Subscribe to model and predictions
-        self.subscribe_data(data_type=DataType(ModelUpdate, metadata={"instrument_id": self.target_id}))
-        self.subscribe_data(data_type=DataType(Prediction, metadata={"instrument_id": self.target_id}))
+        self.subscribe_data(data_type=DataType(ModelUpdate, metadata={"instrument_id": self.target_id.value}))
+        self.subscribe_data(data_type=DataType(Prediction, metadata={"instrument_id": self.target_id.value}))
 
     def on_bar(self, bar: Bar):
-        self.check_for_entry(bar)
-        self.check_for_exit(timer=None, bar=bar)
+        self._check_for_entry(bar)
+        self._check_for_exit(timer=None, bar=bar)
 
     def on_data(self, data: Data):
         if isinstance(data, ModelUpdate):
@@ -82,63 +73,57 @@ class PairTrader(Strategy):
             raise TypeError()
 
     def on_event(self, event: Event):
-        self.check_for_hedge(timer=None, event=event)
+        self._check_for_hedge(timer=None, event=event)
         if isinstance(event, (PositionOpened, PositionChanged)):
             position = self.cache.position(event.position_id)
             self._log.info(f"{position}", color=LogColor.YELLOW)
             assert position.quantity < 80
 
-    def _on_model_update(self, ModelUpdate):
-        pass
+    def _on_model_update(self, model_update: ModelUpdate):
+        self.model = model_update.model
+        self.hedge_ratio = model_update.hedge_ratio
+        self.std_pred = model_update.std_prediction
 
-    def _on_prediction(self, Prediction):
-        pass
+    def _on_prediction(self, prediction: Prediction):
+        self.prediction = prediction.prediction
+        self._update_theoretical(prediction=prediction)
 
-    def update_theoretical(self, bar: Bar):
-        if bar.type.instrument_id == self.source_id and self.model is not None:
-            # Update our theoretical value for `right`
-            X = np.asarray([[bar.close.as_double()]])
-            [[self.theo_right]] = self.model.predict(X)
-        elif bar.type.instrument_id == self.target_id and self.theo_right is not None:
-            # Update the edge between our theoretical for `right` and the actual market
-            quote_right: Bar = self.cache.bar(self.bar_type(self.target_id))
-            if not quote_right:
-                return
+    def _update_theoretical(self, prediction: Prediction):
+        # Update the "edge" between our theoretical for `target` and the actual market
+        quote_right: Bar = self.cache.bar(make_bar_type(self.target_id, bar_spec=self.bar_spec))
+        if not quote_right:
+            return
 
-            self._current_edge = 0
-            market_right = quote_right.close
-            if (self.theo_right - market_right) > 0:
-                self._current_edge = self.theo_right - market_right
-            elif (market_right - self.theo_right) > 0:
-                self._current_edge = market_right - self.theo_right
+        self._current_edge = 0
+        market_right = quote_right.close
+        if (prediction.prediction - market_right) > 0:
+            self._current_edge = prediction.prediction - market_right
+        elif (market_right - prediction.prediction) > 0:
+            self._current_edge = market_right - prediction.prediction
 
-    def check_for_entry(self, bar: Bar):
-        if bar.type.instrument_id == self.source_id and self.model is not None:
-            # Update our theoretical value for `right`
-            X = np.asarray([[bar.close.as_double()]])
-            [[self.theo_right]] = self.model.predict(X)
-        elif bar.type.instrument_id == self.target_id and self.theo_right is not None:
+    def _check_for_entry(self, bar: Bar):
+        if bar.type.instrument_id == self.target_id and self.prediction is not None:
             # Send in orders
-            quote_right: Bar = self.cache.bar(self.bar_type(self.target_id))
-            if not quote_right:
+            quote_target: Bar = self.cache.bar(make_bar_type(self.target_id, bar_spec=self.bar_spec))
+            if not quote_target:
                 return
 
-            market_right = quote_right.close
+            market_right = quote_target.close
             self._current_required_edge = self.std_pred * self.config.trade_width_std_dev
 
             if self._current_edge > self._current_required_edge:
                 # Our theoretical price is above the market; we want to buy
                 side = OrderSide.BUY
                 max_volume = int(self.config.notional_trade_size_usd / market_right)
-                capped_volume = self.cap_volume(instrument_id=self.target_id, max_quantity=max_volume)
-                price = self.theo_right - self._current_required_edge
+                capped_volume = self._cap_volume(instrument_id=self.target_id, max_quantity=max_volume)
+                price = self.prediction - self._current_required_edge
                 self._log.debug(f"{OrderSideParser.to_str_py(side)} {max_volume=} {capped_volume=} {price=}")
             elif self._current_edge < -self._current_required_edge:
                 # Our theoretical price is below the market; we want to sell
                 side = OrderSide.SELL
                 max_volume = int(self.config.notional_trade_size_usd / market_right)
-                capped_volume = self.cap_volume(instrument_id=self.target_id, max_quantity=max_volume)
-                price = self.theo_right + self._current_required_edge
+                capped_volume = self._cap_volume(instrument_id=self.target_id, max_quantity=max_volume)
+                price = self.prediction + self._current_required_edge
                 self._log.debug(f"{OrderSideParser.to_str_py(side)} {max_volume=} {capped_volume=} {price=}")
             else:
                 return
@@ -149,7 +134,7 @@ class PairTrader(Strategy):
                 return
             self._log.info(
                 f"Entry opportunity: {OrderSideParser.to_str_py(side)} market={market_right}, "
-                f"theo={self.theo_right} {capped_volume=} ({self._current_edge=}, {self._current_required_edge=})"
+                f"theo={self.prediction} {capped_volume=} ({self._current_edge=}, {self._current_required_edge=})"
             )
             # Cancel any existing orders
             for order in self.cache.orders_open(instrument_id=self.target_id, strategy_id=self.id):
@@ -157,21 +142,21 @@ class PairTrader(Strategy):
             order = self.order_factory.limit(
                 instrument_id=self.target_id,
                 order_side=side,
-                price=Price(price, self.right.price_precision),
+                price=Price(price, self.target.price_precision),
                 quantity=Quantity.from_int(capped_volume),
                 time_in_force=TimeInForce.IOC,
             )
             self._log.info(f"ENTRY {order.info()}", color=LogColor.BLUE)
             self.submit_order(order)
 
-    def cap_volume(self, instrument_id: InstrumentId, max_quantity: int) -> int:
+    def _cap_volume(self, instrument_id: InstrumentId, max_quantity: int) -> int:
         position_quantity = 0
         position = one(self.cache.positions(instrument_id=instrument_id, strategy_id=self.id))
         if position is not None:
             position_quantity = position.quantity
         return max(0, max_quantity - position_quantity)
 
-    def check_for_hedge(self, timer=None, event: Optional[Event] = None):
+    def _check_for_hedge(self, timer=None, event: Optional[Event] = None):
         if not (isinstance(event, (PositionEvent,)) and event.instrument_id == self.target_id):
             return
 
@@ -184,7 +169,7 @@ class PairTrader(Strategy):
             self.clock.set_time_alert(
                 name=timer_name,
                 alert_time=self.clock.utc_now() + pd.Timedelta(seconds=2),
-                callback=partial(self.check_for_hedge, event=event),
+                callback=partial(self._check_for_hedge, event=event),
             )
         except RepeatedEventComplete:
             # Hedge is complete, return
@@ -202,11 +187,11 @@ class PairTrader(Strategy):
             if target_position.is_closed:
                 return
             quantity = target_position.quantity
-            side = self.opposite_side(target_position.side)
+            side = self._opposite_side(target_position.side)
         else:
             # (possibly) Increasing our position in hedge instrument
-            side = self.opposite_side(base_position.side)
-            quantity = self.cap_volume(instrument_id=self.source_id, max_quantity=hedge_quantity)
+            side = self._opposite_side(base_position.side)
+            quantity = self._cap_volume(instrument_id=self.source_id, max_quantity=hedge_quantity)
 
         if quantity == 0:
             # Fully hedged, cancel any existing orders
@@ -229,7 +214,10 @@ class PairTrader(Strategy):
         self.submit_order(order)
         return order
 
-    def check_for_exit(self, timer=None, bar: Optional[Bar] = None):
+    def _check_for_exit(self, timer=None, bar: Optional[Bar] = None):
+        if not self.cache.positions(strategy_id=self.id):
+            return
+
         # Keep checking that we have successfully got a hedge
         timer_name = f"exit-{self.id}"
         try:
@@ -240,7 +228,7 @@ class PairTrader(Strategy):
             self.clock.set_time_alert(
                 name=timer_name,
                 alert_time=self.clock.utc_now() + pd.Timedelta(seconds=2),
-                callback=partial(self.check_for_exit, bar=bar),
+                callback=partial(self._check_for_exit, bar=bar),
             )
         except RepeatedEventComplete:
             # Hedge is complete, return
@@ -264,13 +252,13 @@ class PairTrader(Strategy):
                 # We're close back to fair value, we should try and close our position
                 order = self.order_factory.market(
                     instrument_id=self.target_id,
-                    order_side=self.opposite_side(position.side),
+                    order_side=self._opposite_side(position.side),
                     quantity=position.quantity,
                 )
                 self._log.info(f"CLOSE {order.info()}", color=LogColor.BLUE)
                 self.submit_order(order)
 
-    def opposite_side(self, side: PositionSide):
+    def _opposite_side(self, side: PositionSide):
         return {PositionSide.LONG: OrderSide.SELL, PositionSide.SHORT: OrderSide.BUY}[side]
 
     def on_stop(self):
