@@ -278,8 +278,139 @@ class TwitterDataClient(LiveMarketDataClient):
 
 ---
 
-## Writing an Adapter
+## BYO data to Nautilus
 
-`super high level slide or two for writing an adapter`
+- Nautilus is strongly typed → performance comes from strict typing. 
+- Can't just load CSV files
+- A couple of options:
 
-- Twitter data
+---
+**Wranglers**
+- The quick choice; load nautilus objects from your own persistent data source 
+    - CSV, JSON, Parquet, Pandas
+- Objects are created on the fly
+- Suitable while experiementing or your data is small (end of day data for example)
+
+---
+
+**DataCatalog**
+- The performant choice; nautilus will write your data into Parquet files optimised for reading
+- Objects basically loaded off disk (or anywhere, s3 etc) as is (minimal conversions required) 
+- Move improvements to come with rust ecosystem (zero-copy loading objects straight into memory)
+
+--- 
+
+# Backtesting
+
+- Nautilus requires a little bit of configuration to run.
+    - it's a fully featured system and has correctness as a core principle
+- Backtest configuration can be done in a couple of ways:
+    - In a python file, manually, as in the examples
+    - Using the `BacktestRunConfig` `pydantic` model from python or JSON (`DataCatalog` only)
+
+Walking through one of the manual examples (same applies to BacktestRunConfig):
+
+---
+
+First, create the engine and instrument(s) to use for the backtest
+
+```python
+    engine = BacktestEngine(
+        config=BacktestEngineConfig(
+            trader_id="BACKTESTER-001",
+        )
+    )
+
+    # Create instrument(s) (or load from DataCatalog etc)
+    ETHUSDT_BINANCE = TestInstrumentProvider.ethusdt_binance()
+    engine.add_instrument(ETHUSDT_BINANCE)
+```
+
+---
+
+Add data to the engine, and define a venue(s)
+
+```python
+    # Use some test data, wrangling into nautilus `ticks`
+    provider = TestDataProvider()
+    wrangler = TradeTickDataWrangler(instrument=ETHUSDT_BINANCE)
+    ticks = wrangler.process(provider.read_csv_ticks("binance-ethusdt-trades.csv"))
+    engine.add_data(ticks)
+
+    # Define the venue for the backtest
+    BINANCE = Venue("BINANCE")
+    engine.add_venue(
+        venue=BINANCE,
+        oms_type=OMSType.NETTING,
+        account_type=AccountType.CASH,  # Spot cash account
+        base_currency=None,  # Multi-currency account
+        starting_balances=[Money(1_000_000, USDT), Money(10, ETH)],
+```
+
+---
+
+Configure strategy(s)
+
+```python
+    config = EMACrossConfig(
+        instrument_id=str(ETHUSDT_BINANCE.id),
+        bar_type="ETHUSDT.BINANCE-250-TICK-LAST-INTERNAL",
+        trade_size=Decimal("0.05"),
+        fast_ema=10,
+        slow_ema=20,
+        order_id_tag="001",
+    )
+
+    strategy = EMACross(config=config)
+
+    engine.add_strategy(strategy=strategy)
+
+```
+
+---
+
+Run the backtest (and optionally pull out some reports)
+
+```python
+    # Run the engine (from start to end of data)
+    engine.run()
+
+    # Optionally view reports
+    with pd.option_context(
+        "display.max_rows",
+        100,
+        "display.max_columns",
+        None,
+        "display.width",
+        300,
+    ):
+        print(engine.trader.generate_account_report(BINANCE))
+        print(engine.trader.generate_order_fills_report())
+        print(engine.trader.generate_positions_report())
+
+    # For repeated backtest runs make sure to reset the engine
+    engine.reset()
+
+    # Good practice to dispose of the object
+    engine.dispose()
+```
+
+
+---
+
+# Live Trading
+
+---
+
+---
+
+## Future developments
+
+- More rust
+- More crypto derivatives exchange adapters (chosen to niche into this space), IB provides a great option for accessing traditional markets
+- Making adapters easier to write
+- Accounting improvements
+
+---
+
+# DEMO TIME
