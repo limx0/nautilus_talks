@@ -27,7 +27,7 @@ marp: true
 * A long fascination and interest in financial markets, programming and computing
 * Started writing a trading platform as MetaTrader 4, C Trader, NinjaTrader didn’t meet requirements
 * NautilusTrader originally written in C#
-* Started working for an FX trading firm based in Singapore focusing on ML and adapter it to their operation
+* Started working for an FX trading firm based in Singapore focusing on ML, and adapted to their operation
 
 ---
 <!-- @brad -->
@@ -289,7 +289,7 @@ def on_event(self, event: Event):
 ---
 
 # Writing an Adapter
-<!-- @chris -->
+<!-- @brad -->
 
 ---
 
