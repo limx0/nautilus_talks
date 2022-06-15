@@ -17,6 +17,7 @@ marp: true
 - Future developments
 
 ---
+<!-- this is a "speaker note" -->
 
 ## Speaker - Chris
 
@@ -261,6 +262,7 @@ def on_event(self, event: Event):
         pass
 
 ```
+
 ---
 
 # Writing an Adapter
@@ -422,6 +424,12 @@ Run the backtest (and optionally pull out some reports)
 
 ---
 
+
+
+---
+
+# DEMO TIME*
+
 ---
 
 ## Future developments
@@ -432,7 +440,3 @@ Run the backtest (and optionally pull out some reports)
 - Accounting improvements
 - Premium cloud product offering fully managed, hybrid cloud, on-prem options - coming soon! (goal is this year)
 - https://nautilustrader.io
-
----
-
-# DEMO TIME
