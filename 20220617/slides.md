@@ -3,13 +3,13 @@ marp: true
 ---
 <!-- class: invert -->
 
-# Nautilus Trader
+# NautilusTrader
 ![bg right width:500px](nautilus_logo.jpeg)
 
 ---
 <!-- @chris -->
 
-## Talk Overview
+## Talk overview
 
 * Speaker intro
 * Introduction to NautilusTrader
@@ -25,9 +25,9 @@ marp: true
 ## Speaker - Chris
 * Non-traditional background coming from another industry
 * A long fascination and interest in financial markets, programming and computing
-* Had been writing my own trading platform as what I required from existing platforms such as MetaTrader 4, C Trader, NinjaTrader didn’t exist
+* Started writing a trading platform as MetaTrader 4, C Trader, NinjaTrader didn’t meet requirements
 * NautilusTrader originally written in C#
-* Started working for an FX trading firm based in Singapore focusing on ML
+* Started working for an FX trading firm based in Singapore focusing on ML and adapter it to their operation
 
 ---
 <!-- @brad -->
@@ -47,11 +47,10 @@ marp: true
 
 * Wanted an extendable robust foundation for a platform using domain driven design, messaging, and to be more performant than existing platforms
 * The traders were using Python and so by necessity developed what started as a thin Python client for the now distributed platform with C# data, risk and execution services
-* Platform has a deep history in FX trading with FIX connections, which has informed naming and terminology throughout (base, quote and settlement currencies), FIX terminology
-* Eventually the Python codebase (now heavily leveraging Cython), could stand on its own as a complete platform, which kept growing into what NautilusTrader is today
-* Has been open sourced for over two years, and has reached a level of maturity where we are excited to present it to the community and hope it provides some value
+* Platform has a deep history in FX trading with FIX connections, which has influenced naming and features throughout
+* Eventually the Python codebase (now heavily leveraging Cython), could stand on its own as a complete platform
+* Has been open sourced for over two years, and has reached a level of maturity where we are excited to present it and hope it provides some value
 * Moving towards Rust as the core language, there will always be a Python API. Eventually all Cython will go
-
 
 ---
 <!-- @chris -->
