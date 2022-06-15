@@ -4,7 +4,7 @@ marp: true
 
 # NautilusTrader
 
---- 
+---
 
 ## Talk Overview
 
@@ -16,7 +16,7 @@ marp: true
 - Live Demo
 - Future developments
 
---- 
+---
 
 ## Speaker - Chris
 
@@ -26,21 +26,21 @@ marp: true
 - NautilusTrader originally written in C#
 - Started working for an FX trading firm based in Singapore focusing on ML
 
---- 
+---
 
 ## Speaker - Brad
 
 - Equity Options trader/researcher/dev by profession - Ex Optiver and IMC
-- Basically spend my days writing Python for data science / automation of trading strategies.
+- Basically spend my days writing Python for data science / automation of trading strategies
 - Also interested in sports betting - dabbling in tennis and basketball betting in the past with very mild success
-- When I discovered Nautilus, I had been working on a similar (much more basic) system for quite a few years, but decided to drop my work and contribute to Nautilus.
-- Contributing for the past year, working on Betfair adapter, better Options support and a bunch of features I thought were necessary for a production trading system.
+- When I discovered Nautilus, I had been working on a similar (much more basic) system for quite a few years, but decided to drop my work and contribute to Nautilus
+- Contributing for the past year, working on Betfair adapter, better Options support and a bunch of features I thought were necessary for a production trading system
 
---- 
+---
 
 ## History and progression of NautilusTrader
 
-- Wanted an extendable robust foundation for the platform using domain driven design, messaging, and to be more performant than existing platforms
+- Wanted an extendable robust foundation for a platform using domain driven design, messaging, and to be more performant than existing platforms
 - The traders were using Python and so by necessity developed what started as a thin Python client for the now distributed platform with C# data, risk and execution services
 - Platform has a deep history in FX trading with FIX connections, which has informed naming and terminology throughout (base, quote and settlement currencies), FIX terminology
 - Eventually the Python codebase (now heavily leveraging Cython), could stand on its own as a complete platform, which kept growing into what NautilusTrader is today
@@ -68,7 +68,9 @@ marp: true
 
 ## Introduction
 
-NautilusTrader is an open-source, high-performance, production-grade algorithmic trading platform, providing quantitative traders with the ability to backtest portfolios of automated trading strategies on historical data with an event-driven engine, and also deploy those same strategies live, with no code changes.
+NautilusTrader is an open-source, high-performance, production-grade algorithmic trading platform, 
+providing quantitative traders with the ability to backtest portfolios of automated trading strategies 
+on historical data with an event-driven engine, and also deploy those same strategies live, with no code changes
 
 ---
 
@@ -110,7 +112,7 @@ The major benefits of the platform are:
 **Advanced**
 
 - The platform favours quality over quantity when it comes to integrations, offering as much of the exchanges functionality as possible
-- Advanced order types and conditional triggers. Execution instructions post-only, reduce-only, and icebergs. Contingency order lists including `OCO, OTO`
+- Advanced order types and conditional triggers. Execution instructions `post-only`, `reduce-only`, and icebergs. Contingency order lists including `OCO, OTO`
 - Time in force for orders `IOC, FOK, GTD, AT_THE_OPEN, AT_THE_CLOSE`
 - System clock allows scheduling events in backtest and live scenarios
 
@@ -133,28 +135,32 @@ The major benefits of the platform are:
 - Ports and adapters architecture, which adopted the '_engines architecture_' of the distributed C# system
 - Highly modular and very well tested with a suite of over 3500 unit, integration and acceptance tests
 - Loose coupling of the system components via a highly efficient message bus and single cache has allowed us to move quite quickly with changes and improvements
-- Components interact using various messaging patterns through the message bus (Pub/Sub, Req/Rep or point-to-point) → meaning they don’t need knowledge of, or direct references/dependencies on each other. 
-- The message bus (written in Cython) is highly performant, with benchmarks between direct method calls or message bus being nearly identical (slightly in favor of direct calls). The loose coupling makes this worth it.
+- Components interact using various messaging patterns through the message bus (Pub/Sub, Req/Rep or point-to-point) → meaning they don’t need knowledge of, or direct references/dependencies on each other
+- The message bus (written in Cython) is highly performant, with benchmarks between direct method calls or message bus being nearly identical (slightly in favor of direct calls). The loose coupling makes this worth it
 
 ---
-@Chris to fix
-- Quick blurb on language choices, the right tools for the job → Python for data and non performance critical code, you can’t beat the ecosystem for iterating and prototyping fast, data and ML. Cython/Rust for performance critical components, enables the high performance even when run in a complex event-driven context.
-- Introduction of the Rust core [very short headline about why Rust], and expect gradual yet continuous improvements, we’re effectively creating a framework of trading components and a trading domain model, with Python bindings over a native binary core similar to numpy and pandas which also enjoy extremely high performance.
-- Core of the system identical between backtest and live, which is formalized in the code with the `NautilusKernel` (explain with diagram comparing live and backtest → essentially (literally?) exactly the same system, just different ‘adapters’)
 
---- 
+## Language choices
+
+- Using the right tools for the job: 
+  - Python for data and non performance critical code, you can’t beat the ecosystem for iterating and prototyping fast, data and ML
+  - Rust and Cython for performance critical components, enables the high performance even when run in a complex event-driven context
+- Introduction of the Rust core, and expect gradual yet continuous improvements, we’re effectively creating a framework of trading components and a trading domain model, with Python bindings over a native binary core similar to numpy and pandas which also enjoy extremely high performance
+- Core of the system identical between backtest and live, which is formalized in the code with the `NautilusKernel`
+
+---
 
 # Complete Trading System
 
 ---
 
 - Open source → on prem
-- Backtest models (fill model, order latency)
-- Orders → order tags, TIF , stop loss/take profit
-- Accounts
-- Positions
+- Backtest models (fill model, order latency, simulation modules)
+- Orders → order tags, TIF, stop-loss/take-profit, brackets
+- Accounts (cash and margin)
+- Positions (netting and hedging OMS)
 - Portfolio
-- Persistence
+- Persistence (events/state with Redis)
 
 ---
 
@@ -173,7 +179,7 @@ The major benefits of the platform are:
 
 - Multiple people using in production
 - Many more testing the waters with backtesting
-- Short term areas that need work / testing: (its not perfect)
+- Short term areas that need work / testing: (its not perfect!)
     - Accounting components (more testing required for margin accounts, sub-accounts)
     - Configuration and deployment
 
@@ -295,7 +301,7 @@ class TwitterDataClient(LiveMarketDataClient):
 ## BYO data to Nautilus
 
 - Nautilus is strongly typed → performance comes from strict typing
-- Can't just load CSV files
+- Can't just load CSV files into pandas
 - A couple of options:
 
 ---
@@ -312,7 +318,7 @@ class TwitterDataClient(LiveMarketDataClient):
 - Objects basically loaded off disk (or anywhere, s3 etc) as is (minimal conversions required) 
 - Move improvements to come with rust ecosystem (zero-copy loading objects straight into memory)
 
---- 
+---
 
 # Backtesting
 
