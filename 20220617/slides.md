@@ -2,26 +2,28 @@
 marp: true
 ---
 
-# Nautilus Trader
+# NautilusTrader
 
 --- 
 
 ## Talk Overview
+
 - Speaker intro
 - Introduction to NautilusTrader
 - Features of NautilusTrader
 - Using NautilusTrader
-- Current state & future developments
+- Current state of the project
 - Live Demo
+- Future developments
 
 --- 
 
 ## Speaker - Chris
 
-@Chris to fix
 - Non-traditional background coming from another industry
 - A long fascination and interest in financial markets, programming and computing
-- Had been writing my own trading platform as what I required from existing platforms such as MetaTrader 4, C Trader, NinjaTrader didn’t exist, NautilusTrader originally written in C#
+- Had been writing my own trading platform as what I required from existing platforms such as MetaTrader 4, C Trader, NinjaTrader didn’t exist
+- NautilusTrader originally written in C#
 - Started working for an FX trading firm based in Singapore focusing on ML
 
 --- 
@@ -29,27 +31,28 @@ marp: true
 ## Speaker - Brad
 
 - Equity Options trader/researcher/dev by profession - Ex Optiver and IMC
-- Basically spend my days writing python for data science / automation of trading strategies.
+- Basically spend my days writing Python for data science / automation of trading strategies.
 - Also interested in sports betting - dabbling in tennis and basketball betting in the past with very mild success
 - When I discovered Nautilus, I had been working on a similar (much more basic) system for quite a few years, but decided to drop my work and contribute to Nautilus.
 - Contributing for the past year, working on Betfair adapter, better Options support and a bunch of features I thought were necessary for a production trading system.
 
-
 --- 
 
-## History of Nautilus
+## History and progression of NautilusTrader
 
-@Chris to fix
-
-- The traders were using Python and so by necessity I developed what started as a thin Python client for the now distributed platform with C# data, risk and execution services
-- This grew to the point that the Python codebase now heavily leveraging Cython, could stand on its own as a complete platform, which kept growing into what NautilusTrader is today
-- Has been open sourced for over two years now and has reached a level of maturity where we are excited to present it to the community and hope it provides value
+- Wanted an extendable robust foundation for the platform using domain driven design, messaging, and to be more performant than existing platforms
+- The traders were using Python and so by necessity developed what started as a thin Python client for the now distributed platform with C# data, risk and execution services
+- Platform has a deep history in FX trading with FIX connections, which has informed naming and terminology throughout (base, quote and settlement currencies), FIX terminology
+- Eventually the Python codebase (now heavily leveraging Cython), could stand on its own as a complete platform, which kept growing into what NautilusTrader is today
+- Has been open sourced for over two years, and has reached a level of maturity where we are excited to present it to the community and hope it provides some value
+- Moving towards Rust as the core language, there will always be a Python API. Eventually all Cython will go
 
 ---
 
 ## Background
+
 - Philosophy (correctness, performance, research → prod parity)
-- Features headlines (could just briefly scroll the README)
+- Features headlines
 - Event-driven, messaging
 - Performance features - Cython and Rust (brief)
 - Framework + System implementations (repo organization, same core system)
@@ -71,44 +74,54 @@ NautilusTrader is an open-source, high-performance, production-grade algorithmic
 
 ## Features
 
-The major features of the platform are:
+The major benefits of the platform are:
+
+- **Highly performant event-driven Python** - native binary core components
+- **Parity between backtesting and live trading** - identical strategy code
+- **Reduced operational risk** - risk management functionality, logical correctness and type safety
+- **Highly extendable** - message bus, custom components and actors, custom data, custom adapters
 
 ---
 
 **Performance**
 - Event-driven backtest systems tend to have lower performance than vectorized methods
 - Nautilus is written in Cython, with a Rust core currently being introduced incrementally
-- The engine handles >100,000 events per second, allowing for backtesting tick data for even the most liquid products.
-- Backtests are setup to be trivially parallelizable.
+- The engine handles >100,000 events per second, allowing for backtesting tick data for even the most liquid products
+- Backtests are trivially parallelizable via configuration objects
 
 ---
 
 **Backtest/live parity**
-- Nautilus is structured such that a huge portion of the system is unaware if it is running in backtest or live.
-- The same strategy code which is developed for research and backtesting can be used to run live trading, with zero changes required.
-- *Framework + System implementations (repo organization, same core system) `COPIED FROM BELOW`*
+
+- Nautilus is structured such that a huge portion of the system is unaware if it is running in backtest or live
+- This is formalized in the actual code, with a common `NautilusKernel` object containing all the engines and core components
+- The same strategy code which is developed for research and backtesting can be used to run live trading, with zero changes required
 
 ---
 
 **Flexible**
-- multiple strategies/venues/instruments in a single instance.
-- Define custom external data types easily with full integration within the system.
-- Pass messages between components via the message bus.
+
+- Multiple strategies/venues/instruments in a single instance
+- Define custom external data types easily with full integration within the system
+- Pass messages between components via the message bus
 
 ---
 
 **Advanced**
-- Time in force for orders `IOC, FOK, GTD, AT_THE_OPEN, AT_THE_CLOSE`,
-- advanced order types and conditional triggers. Execution instructions post-only, reduce-only, and icebergs. Contingency order lists including `OCO, OTO`
+
+- The platform favours quality over quantity when it comes to integrations, offering as much of the exchanges functionality as possible
+- Advanced order types and conditional triggers. Execution instructions post-only, reduce-only, and icebergs. Contingency order lists including `OCO, OTO`
+- Time in force for orders `IOC, FOK, GTD, AT_THE_OPEN, AT_THE_CLOSE`
 - System clock allows scheduling events in backtest and live scenarios
 
 ---
 
-**Extendable**;
-- Integrates with any REST, WebSocket or FIX API via modular adapters.
-- Capable of handling various asset classes including (but not limited to) FX, Equities, Futures, Options, CFDs, Crypto and Sports Betting - across multiple venues simultaneously.
-- Extend the core system via Actors and the message bus.
-- Custom data, portfolio statistics, etc.
+**Extendable**
+
+- Integrates with any REST, WebSocket or FIX API via modular adapters
+- Capable of handling various asset classes including (but not limited to) FX, Equities, Futures, Options, CFDs, Crypto and Sports Betting - across multiple venues simultaneously
+- Extend the core system via Actors and the message bus
+- Custom data, portfolio statistics, etc
 
 ---
 
@@ -116,11 +129,12 @@ The major features of the platform are:
 
 ---
 
-@Chris to fix
-- Both a framework for trading systems, as well as several system implementations for backtesting, live trading and even a sandbox environment on the way (live data with simulated execution)
-- Ports and adapters architecture, which copied the architecture of the distributed C# system
+- Both a framework for trading systems, with several system implementations for backtesting, live trading and even a sandbox environment on the way (live data with simulated execution)
+- Ports and adapters architecture, which adopted the '_engines architecture_' of the distributed C# system
 - Highly modular and very well tested with a suite of over 3500 unit, integration and acceptance tests
-- Loose coupling of the system components via a highly efficient message bus and single cache has allowed us to move quite quickly with changes and improvements. Components interact using various messaging patterns through the message bus (Pub/Sub, Req/Rep or point-to-point) → meaning they don’t need knowledge of, or direct references/dependencies on each other. The message bus (written in Cython) is highly performant, withy benchmarks between direct method calls or message bus being nearly identical (slightly in favor of direct calls). The loose coupling makes this worth it.
+- Loose coupling of the system components via a highly efficient message bus and single cache has allowed us to move quite quickly with changes and improvements
+- Components interact using various messaging patterns through the message bus (Pub/Sub, Req/Rep or point-to-point) → meaning they don’t need knowledge of, or direct references/dependencies on each other. 
+- The message bus (written in Cython) is highly performant, with benchmarks between direct method calls or message bus being nearly identical (slightly in favor of direct calls). The loose coupling makes this worth it.
 
 ---
 @Chris to fix
@@ -159,8 +173,8 @@ The major features of the platform are:
 
 - Multiple people using in production
 - Many more testing the waters with backtesting
-- Short term areas that need work / testing: (I agree to call out the areas we want to improve, its not perfect)
-    - Accounting components (more testing required for margin accounts, sub accounts)
+- Short term areas that need work / testing: (its not perfect)
+    - Accounting components (more testing required for margin accounts, sub-accounts)
     - Configuration and deployment
 
 ---
@@ -280,7 +294,7 @@ class TwitterDataClient(LiveMarketDataClient):
 
 ## BYO data to Nautilus
 
-- Nautilus is strongly typed → performance comes from strict typing. 
+- Nautilus is strongly typed → performance comes from strict typing
 - Can't just load CSV files
 - A couple of options:
 
@@ -289,7 +303,7 @@ class TwitterDataClient(LiveMarketDataClient):
 - The quick choice; load nautilus objects from your own persistent data source 
     - CSV, JSON, Parquet, Pandas
 - Objects are created on the fly
-- Suitable while experiementing or your data is small (end of day data for example)
+- Suitable while experimenting or your data is small (end of day data for example)
 
 ---
 
@@ -406,10 +420,12 @@ Run the backtest (and optionally pull out some reports)
 
 ## Future developments
 
-- More rust
-- More crypto derivatives exchange adapters (chosen to niche into this space), IB provides a great option for accessing traditional markets
+- More Rust
+- More Crypto derivatives exchange adapters (chosen to niche into this space), IB provides a great option for accessing traditional markets
 - Making adapters easier to write
 - Accounting improvements
+- Premium cloud product offering fully managed, hybrid cloud, on-prem options - coming soon! (goal is this year)
+- https://nautilustrader.io
 
 ---
 
