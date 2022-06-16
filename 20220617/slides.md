@@ -190,8 +190,8 @@ The major benefits of the platform are:
 ---
 
 * Actors → Custom components that can interact with the system in any way
-* Message bus → Point-to-point, request-response, or pub-sub messaging across the entire system
-* Custom data → Market stats, scoreboard, twitter feed, Historic and live
+* Message bus → Point-to-point, Request/Response, or Pub/Sub messaging across the entire system
+* Custom data → Market stats, scoreboard, Twitter feed, historical and live
 * Risk engine → Fat finger checks, order frequency limits etc
 * Cache → easily pull data from a central place from strategy/actor with a single line
 * Clock / Time events → Trigger events at times or on a timer for custom callbacks or triggers
