@@ -197,7 +197,7 @@ The major benefits of the platform are:
 * Clock / Time events → Trigger events at times or on a timer for custom callbacks or triggers
 
 ---
-<!-- @brad -->
+<!-- @chris -->
 
 # Current State of NautilusTrader
 
@@ -214,7 +214,7 @@ The major benefits of the platform are:
 ---
 
 # Getting started with NautilusTrader
-<!-- @brad -->
+<!-- @chris -->
 
 * Jupyterlab docker image (including sample data and backtest notebook)
     - `docker run -p 8888:8888 ghcr.io/nautechsystems/jupyterlab:develop`
