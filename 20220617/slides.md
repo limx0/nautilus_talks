@@ -16,6 +16,7 @@ marp: true
 * Features of NautilusTrader
 * Using NautilusTrader
 * Current state of the project
+* Live Crypto examples
 * Live walkthrough of pairs trading strategy
 * Future developments
 
@@ -61,20 +62,6 @@ marp: true
 * Eventually the Python codebase (now heavily leveraging Cython), could stand on its own as a complete platform
 * Has been open sourced for over two years, and has reached a level of maturity where we are excited to present it and hope it provides some value
 * Moving towards Rust as the core language, there will always be a Python API. Eventually all Cython will go
-
----
-<!-- @chris -->
-
-## Background
-
-* Philosophy (correctness, performance, research → prod parity)
-* Feature headlines
-* Event-driven, messaging
-* Performance features - Cython and Rust (brief)
-* Framework + System implementations (repo organization, same core system)
-* High level architecture [slide]
-* Strategy (brief)
-* Backtest vs Live (strategy impl)
 
 ---
 <!-- @chris -->
@@ -159,6 +146,7 @@ The major benefits of the platform are:
 
 ---
 
+![bg right width:700px](architecture-overview.png)
 * Both a framework for trading systems, with several system implementations for backtesting, live trading and even a sandbox environment on the way (live data with simulated execution)
 * Ports and adapters architecture, which adopted the '_engines architecture_' of the distributed C# system
 * Highly modular and very well tested with a suite of over 3500 unit, integration and acceptance tests
@@ -174,7 +162,6 @@ The major benefits of the platform are:
   - Python for data and non performance critical code, you can’t beat the ecosystem for iterating and prototyping fast, data and ML
   - Rust and Cython for performance critical components, enables the high performance even when run in a complex event-driven context
 * Introduction of the Rust core, and expect gradual yet continuous improvements, we’re effectively creating a framework of trading components and a trading domain model, with Python bindings over a native binary core similar to numpy and pandas which also enjoy extremely high performance
-* Core of the system identical between backtest and live, which is formalized in the code with the `NautilusKernel`
 
 ---
 
