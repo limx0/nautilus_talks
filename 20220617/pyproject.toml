@@ -7,14 +7,17 @@ authors = ["Bradley McElroy <bradley.mcelroy@live.com>"]
 [tool.poetry.dependencies]
 # Stuck on 3.9 due to 3.10/cython/numpy/scipy bug https://github.com/numpy/numpy/issues/21008
 python = ">=3.9,<3.10"
-nautilus-trader = "^1.147.1"
+nautilus-trader = { version = "^1.147.1", extras=["ib"] }
+
 invoke = "^1.7.1"
 scikit-learn = "^1.1.1"
 scipy = "^1.8.1"
+docker = "^5.0.3"
 
 [tool.poetry.dev-dependencies]
 voila = "^0.3.5"
 ipykernel = "^6.13.1"
+python-dotenv = "^0.20.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
