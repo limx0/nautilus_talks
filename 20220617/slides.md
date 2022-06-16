@@ -17,7 +17,7 @@ marp: true
 * Using NautilusTrader
 * Current state of the project
 * Live Crypto examples
-* Live walkthrough of pairs trading strategy
+* Live walk-through of pairs trading strategy
 * Future developments
 
 ---
@@ -26,7 +26,7 @@ marp: true
 ## Speaker - Chris
 * Non-traditional background coming from another industry
 * A long fascination and interest in financial markets, programming and computing
-* Started writing a trading platform as MetaTrader 4, C Trader, NinjaTrader didn’t meet requirements
+* Started writing a trading platform as MetaTrader 4, C Trader, NinjaTrader didn't meet requirements
 * NautilusTrader originally written in C#
 * Started working for an FX trading firm based in Singapore focusing on ML, and adapted to their operation
 
@@ -89,7 +89,7 @@ The major benefits of the platform are:
 ---
 
 **Performance**
-* Event-driven backtest systems tend to have lower performance than vectorized methods
+* Event-driven backtest systems have lower performance than vectorized methods
 * Nautilus is written in Cython, with a Rust core currently being introduced incrementally
 * The engine handles >100,000 events per second, allowing for backtesting tick data for even the most liquid products
 * Backtests are trivially parallelizable via configuration objects
@@ -114,7 +114,7 @@ The major benefits of the platform are:
 
 **Advanced**
 
-* The platform favours quality over quantity when it comes to integrations, offering as much of the exchanges functionality as possible
+* The platform favours quality over quantity when it comes to integrations, offering as much of the exchanges' functionality as possible
 * Advanced order types and conditional triggers. Execution instructions `post-only`, `reduce-only`, and icebergs. Contingency order lists including `OCO, OTO`
 * Time in force for orders `IOC, FOK, GTD, AT_THE_OPEN, AT_THE_CLOSE`
 * System clock allows scheduling events in backtest and live scenarios
@@ -159,8 +159,8 @@ The major benefits of the platform are:
 ## Language choices
 
 * Using the right tools for the job: 
-  - Python for data and non performance critical code, you can’t beat the ecosystem for iterating and prototyping fast, data and ML
-  - Rust and Cython for performance critical components, enables the high performance even when run in a complex event-driven context
+  * Python for data and non performance critical code, you can’t beat the ecosystem for iterating and prototyping fast, data and ML
+  * Rust and Cython for performance critical components, enables the high performance even when run in a complex event-driven context
 * Introduction of the Rust core, and expect gradual yet continuous improvements, we’re effectively creating a framework of trading components and a trading domain model, with Python bindings over a native binary core similar to numpy and pandas which also enjoy extremely high performance
 
 ---
@@ -179,7 +179,7 @@ The major benefits of the platform are:
 * Accounts → cash and margin
 * Positions → netting and hedging Order-Management-System, realised, unrealised pnls
 * Portfolio component → query positions, values
-* Persistence → every pieve of data and event (live and backtest) can be persisted automatically
+* Persistence → every piece of data and event (live and backtest) can be persisted automatically
 * CacheDatabase → store execution state (orders) and strategy state in-memory or Redis
 
 ---
@@ -198,9 +198,9 @@ The major benefits of the platform are:
 
 * Multiple people using in production
 * Many more testing the waters with backtesting
-* Short term areas that need work / testing: (it's not perfect!)
-    - Accounting components (more testing required for margin accounts, sub-accounts)
-    - Configuration and deployment
+* Short term areas that need work / testing (it's not perfect!):
+  * Accounting components (more testing required for margin accounts, sub-accounts)
+  * Configuration and deployment
 
 ---
 
@@ -348,15 +348,15 @@ class TwitterDataClient(LiveDataClient):
 * The quick choice; load nautilus objects from your own persistent data source 
     - CSV, JSON, Parquet, Pandas
 * Objects are created on the fly
-* Suitable while experimenting or your data is small (end of day data for example)
+* Suitable while experimenting or your data is small (hourly / EOD for example)
 
 ---
 
 ### DataCatalog
 * The performant choice; nautilus will write your data into Parquet files optimised for reading
 * Objects basically loaded from "file" as is (minimal conversions required)
-* Uses the excellent `fsspec` library as a base (data can be loaded from sftp/s3/gcs/asdl/etc)
-* Move improvements to come with rust ecosystem (zero-copy loading objects straight into memory)
+* Uses the excellent `fsspec` library as a base (supports sftp/s3/gcs/asdl/etc)
+* More improvements to come with rust ecosystem (zero-copy loading objects straight into memory)
 
 ---
 
@@ -368,14 +368,17 @@ class TwitterDataClient(LiveDataClient):
 <!-- @chris -->
 
 * Nautilus requires a little bit of configuration to run.
-    - it's a fully featured system and has correctness as a core principle
+   * it's a fully featured system and has correctness as a core principle
 * Backtest configuration can be done in a couple of ways:
-    - In a python file, manually, as in the examples
-    - Using a `pydantic` model, the `"BacktestRunConfig"`  from python or JSON (`DataCatalog` only)
+  * In a python file, manually, as in the examples
+  * Using the `"BacktestRunConfig"` from python or JSON (`DataCatalog` only)
 
-Walking through one of the manual examples:
+---
+
+Walk-through one of the examples - `examples/backtest/crypto_ema_cross_ethusdt_trade_ticks.py`
 
 _(exact same configuration applies to BacktestRunConfig)_
+
 
 ---
 
@@ -529,7 +532,7 @@ results: List[BacktestResult] = node.run()
 * Walking through a live version of the backtest example above:
 ---
 
-* Start to define the `TradingNodeConfig`, including live-only settings for timeouts etc
+Start to define the `TradingNodeConfig`, including live-only settings for timeouts etc
 * including a cache_database for persisting state (in memory or redis optional)
 
 ```python
@@ -570,7 +573,7 @@ Add data client(s);
 
 Add (optionally) execution client(s); 
  - this is where orders will be sent and
- - Accounts, executiion events (fills, positions) received from
+ - Accounts, execution events (fills, positions) received from
 
 ```python
     exec_clients={
@@ -611,7 +614,7 @@ node.trader.add_strategy(strategy)
 
 ---
 Finally, register factories for the clients and build/start the node
-
+ 
 ```python
 
 
@@ -628,6 +631,8 @@ if __name__ == "__main__":
         node.dispose()
 ```
 
+_Factory pattern here so downstream packages can easily register new custom adapters_
+
 ---
 <!-- @chris -->
 
@@ -635,7 +640,7 @@ if __name__ == "__main__":
 
 ---
 
-# Walkthrough - Pairs Trading
+# Walkthrough - Pairs Trading Strategy
 <!-- @brad -->
 <!-- pairs trading intro -->
 <!-- walk through of pairs trading strategy -->
@@ -649,5 +654,8 @@ if __name__ == "__main__":
 - Making adapters easier to write
 - Accounting improvements
 - Premium cloud product offering fully managed, hybrid cloud, on-prem options - coming soon! (goal is this year)
-- https://nautilustrader.io
 ---
+
+# Questions
+
+https://nautilustrader.io
