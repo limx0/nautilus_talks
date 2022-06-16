@@ -7,6 +7,7 @@ from model import ModelUpdate, Prediction
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.config import StrategyConfig
 from nautilus_trader.core.data import Data
+from nautilus_trader.core.datetime import unix_nanos_to_dt
 from nautilus_trader.core.message import Event
 from nautilus_trader.model.c_enums.order_side import OrderSideParser
 from nautilus_trader.model.data.bar import Bar, BarSpecification
@@ -22,7 +23,7 @@ from nautilus_trader.model.identifiers import InstrumentId, PositionId
 from nautilus_trader.model.objects import Price, Quantity
 from nautilus_trader.model.position import Position
 from nautilus_trader.trading.strategy import Strategy
-from util import make_bar_type
+from util import human_readable_duration, make_bar_type
 
 
 class PairTraderConfig(StrategyConfig):
@@ -282,16 +283,16 @@ class PairTrader(Strategy):
     def _summarise_position(self):
         src_pos: Position = self.current_position(instrument_id=self.source_id)
         tgt_pos: Position = self.current_position(instrument_id=self.target_id)
-        self.log.info("Hedge summary:", color=LogColor.GREEN)
-        self.log.info(
+        self.log.warning("Hedge summary:", color=LogColor.BLUE)
+        self.log.warning(
             f"target: {OrderSideParser.to_str_py(tgt_pos.events[0].order_side)} {tgt_pos.peak_qty}, "
             f"{tgt_pos.avg_px_open=}, {tgt_pos.avg_px_close=}, {tgt_pos.realized_return=:0.4f}",
-            color=LogColor.GREEN,
+            color=LogColor.NORMAL,
         )
-        self.log.info(
+        self.log.warning(
             f"source: {OrderSideParser.to_str_py(src_pos.events[0].order_side)} {src_pos.peak_qty}, "
             f"{src_pos.avg_px_open=}, {src_pos.avg_px_close=}, {src_pos.realized_return=:0.4f}",
-            color=LogColor.GREEN,
+            color=LogColor.NORMAL,
         )
 
         def peak_notional(pos):
@@ -304,13 +305,17 @@ class PairTrader(Strategy):
         pnl = src_pos.realized_pnl + tgt_pos.realized_pnl
         return_bps = float(pnl) / margin_requirements * 10_000
         self.log.warning(
+            f"position duration = {human_readable_duration(src_pos.duration_ns)} "
+            f"(opened={unix_nanos_to_dt(src_pos.ts_opened)}, closed={unix_nanos_to_dt(src_pos.ts_closed)}",
+            color=LogColor.NORMAL,
+        )
+        self.log.warning(
             f"Spread=({tgt_notional:.0f}/{src_notional:.0f}), total_margin_required={margin_requirements:0.1f} "
-            f"PNL=${pnl}, margin_return={return_bps:0.1f}bps",
+            f"PNL=${pnl}, margin_return={return_bps:0.1f}bps\n",
             color=LogColor.GREEN if pnl > 0 else LogColor.RED,
         )
 
         self._summarised.add(src_pos.id.value)
-        print()
 
     def on_stop(self):
         self.close_all_positions(self.source_id)
