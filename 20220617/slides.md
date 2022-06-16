@@ -16,7 +16,7 @@ marp: true
 * Features of NautilusTrader
 * Using NautilusTrader
 * Current state of the project
-* Live Demo
+* Live walkthrough of pairs trading strategy
 * Future developments
 
 ---
@@ -34,11 +34,21 @@ marp: true
 
 ## Speaker - Brad
 
-* Equity Options trader/researcher/dev by profession - Ex Optiver and IMC
-* Basically spend my days writing Python for data science / automation of trading strategies
-* Also interested in sports betting - dabbling in tennis and basketball betting in the past with very mild success
-* When I discovered Nautilus, I had been working on a similar (much more basic) system for quite a few years, but decided to drop my work and contribute to Nautilus
-* Contributing for the past year, working on Betfair adapter, better Options support and a bunch of features I thought were necessary for a production trading system
+* Equity Options trader/researcher by profession (Optiver / IMC)
+* Spend my days writing Python for research & automation of trading strategies
+* Also interested in sports betting 
+    - dabbling in tennis and basketball betting in the past with very mild success
+
+---
+
+## Speaker - Brad
+* Discovered Nautilus over a year ago and did a bit of a deep dive
+* At the time I had been working on a similar (much more basic) system for quite a few years
+* Decided to drop my (years of) work straight away and contribute to Nautilus
+* Worked on:
+    * Adapters (Betfair, Interactive Brokers)
+    * Data loading / persistence
+    * Helping Chris with ideas / implementation of other features I thought were necessary for a production trading system
 
 ---
 <!-- @chris -->
@@ -135,10 +145,13 @@ The major benefits of the platform are:
 
 **Open Source**
 
-* Integrates with any REST, WebSocket or FIX API via modular adapters
-* Capable of handling various asset classes including (but not limited to) FX, Equities, Futures, Options, CFDs, Crypto and Sports Betting - across multiple venues simultaneously
-* Extend the core system via Actors and the message bus
-* Custom data, portfolio statistics, etc
+* NautilusTrader is and will remain open source software
+* Safely run your proprietary code & data on premises
+* Cloud offering (slowly) in the works, focusing on
+    - Scaling backtesting
+    - Visualisation and monitoring
+    - Easy deployment of live instances
+    - Data and code will remain your IP - Cloud will simply orchestrate
 
 ---
 
@@ -165,33 +178,31 @@ The major benefits of the platform are:
 
 ---
 
-# Building a Complete Trading System
+# Nautilus as a Complete Trading System
 <!-- @brad -->
 
 <!-- Talk about concrete components / features -->
 
-* or why wouldn't I just use `insert xyz project I found on github`
+* _or why wouldn't I just use `XYZ project I found on github`_
 
 ---
 
-* Backtest models (fill model, order latency, simulation modules)
-* Orders → order tags, TIF, stop-loss/take-profit, brackets
-* Accounts (cash and margin)
-* Positions (netting and hedging OMS)
-* Portfolio
-* Persistence (events/state with Redis)
-* CacheDatabase (Redis)
+* Backtest simulations → fill models, order latency, among other models.
+* Orders → order tags, Time-In-Force, stop-loss/take-profit, bracket orders
+* Accounts → cash and margin
+* Positions → netting and hedging Order-Management-System, realised, unrealised pnls
+* Portfolio component → query positions, values
+* Persistence → every pieve of data and event (live and backtest) can be persisted automatically
+* CacheDatabase → store execution state (orders) and strategy state in-memory or Redis
 
 ---
 
-* Actors
-* Message bus
-* Custom data
-    - Market stats, scoreboard, twitter feed
-    - Historic and live
-* Risk engine
-* Cache
-* Clock / Time events
+* Actors → Custom components that can interact with the system in any way
+* Message bus → Point-to-point, request-response, or pub-sub messaging across the entire system
+* Custom data → Market stats, scoreboard, twitter feed, Historic and live
+* Risk engine → Fat finger checks, order frequency limits etc
+* Cache → easily pull data from a central place from strategy/actor with a single line
+* Clock / Time events → Trigger events at times or on a timer for custom callbacks or triggers
 
 ---
 <!-- @brad -->
@@ -213,8 +224,9 @@ The major benefits of the platform are:
 # Getting started with NautilusTrader
 <!-- @brad -->
 
-* Jupyterlab docker image
-    - `ghcr.io/nautechsystems/jupyterlab:develop`
+* Jupyterlab docker image (including sample data and backtest notebook)
+    - `docker run -p 8888:8888 ghcr.io/nautechsystems/jupyterlab:develop`
+
 * Examples directory
     - https://github.com/nautechsystems/nautilus_trader/tree/master/examples
 
@@ -259,7 +271,9 @@ class OrderBookImbalance(Strategy):
 
 ---
 
-### Data methods
+### Data methods: 
+
+`on_quote_tick/trade_tick/bar(self, data)` etc)
 
 ```python
 def on_quote_tick(self, tick: QuoteTick):
@@ -276,7 +290,8 @@ def on_quote_tick(self, tick: QuoteTick):
 
 ---
 
-### Event method
+### Event method 
+(`OrderInitialized/Accepted/Filled PositionOpened/Changed` etc)
 
 ```python
 def on_event(self, event: Event):
@@ -295,17 +310,27 @@ def on_event(self, event: Event):
 
 ## Adapters
 
-- Convert external data or events into nautilus format
-- Split into `Data` (quotes, trades, tweets) and `Execution` (order fills, account balance updates)
+* Convert external data or events into nautilus format
+* Split into:
+    * `DataClient` - quotes, trades, tweets, etc
+    * `ExecutionClient` - order fills, positions, account balance updates, etc
 
 ---
 
 ```python
-class TwitterDataClient(LiveMarketDataClient):
+class Tweet(Data):
+    def __init__(self, text: str, ts_init: int):
+        super().__init__(ts_init, ts_init)
+        self.text = text
+
+
+class TwitterDataClient(LiveDataClient):
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
         self.stream = requests.get(
-            "https://api.twitter.com/2/tweets/search/stream", auth=bearer_oauth, stream=True,
+            url="https://api.twitter.com/2/tweets/search/stream", 
+            auth=bearer_oauth, 
+            stream=True,
         ) 
 
     def connect(self):
@@ -315,8 +340,8 @@ class TwitterDataClient(LiveMarketDataClient):
     async def on_tweet(self):
         for response_line in self.stream.iter_lines():
             if response_line:
-                json_response = json.loads(response_line)
-                tweet = Tweet(json_response)
+                json_resp = json.loads(response_line)
+                tweet = Tweet(text=json_resp['text'], ts_init=json_resp['timestamp'])
                 # Feed data to nautilus engine
                 self._handle_data(data=tweet)
             await asyncio.sleep(0.1)
@@ -324,15 +349,15 @@ class TwitterDataClient(LiveMarketDataClient):
 
 ---
 
-## BYO data to Nautilus
+## Getting data into Nautilus
 <!-- @brad -->
 
 - Nautilus is strongly typed → performance comes from strict typing
-- Can't just load CSV files into pandas
+- Can't just load CSV files (but only a tiny bit of work required)
 - A couple of options:
 
 ---
-**Wranglers**
+### Wranglers
 * The quick choice; load nautilus objects from your own persistent data source 
     - CSV, JSON, Parquet, Pandas
 * Objects are created on the fly
@@ -340,27 +365,34 @@ class TwitterDataClient(LiveMarketDataClient):
 
 ---
 
-**DataCatalog**
+### DataCatalog
 * The performant choice; nautilus will write your data into Parquet files optimised for reading
-* Objects basically loaded off disk (or anywhere, s3 etc) as is (minimal conversions required) 
+* Objects basically loaded from "file" as is (minimal conversions required)
+* Uses the excellent `fsspec` library as a base (data can be loaded from sftp/s3/gcs/asdl/etc)
 * Move improvements to come with rust ecosystem (zero-copy loading objects straight into memory)
 
 ---
 
-# Backtesting
+# Running Backtests
+
+---
+## Running Backtests
+
 <!-- @chris -->
 
 * Nautilus requires a little bit of configuration to run.
     - it's a fully featured system and has correctness as a core principle
 * Backtest configuration can be done in a couple of ways:
     - In a python file, manually, as in the examples
-    - Using the `BacktestRunConfig` `pydantic` model from python or JSON (`DataCatalog` only)
+    - Using a `pydantic` model, the `"BacktestRunConfig"`  from python or JSON (`DataCatalog` only)
 
-Walking through one of the manual examples (same applies to BacktestRunConfig):
+Walking through one of the manual examples:
+
+_(exact same configuration applies to BacktestRunConfig)_
 
 ---
 
-First, create the engine and instrument(s) to use for the backtest
+First, create the engine backtest engine
 
 ```python
     engine = BacktestEngine(
@@ -368,36 +400,65 @@ First, create the engine and instrument(s) to use for the backtest
             trader_id="BACKTESTER-001",
         )
     )
-
-    # Create instrument(s) (or load from DataCatalog etc)
-    ETHUSDT_BINANCE = TestInstrumentProvider.ethusdt_binance()
-    engine.add_instrument(ETHUSDT_BINANCE)
 ```
 
 ---
 
-Add data to the engine, and define a venue(s)
+Next, add instruments
 
 ```python
-    # Use some test data, wrangling into nautilus `ticks`
-    provider = TestDataProvider()
-    wrangler = TradeTickDataWrangler(instrument=ETHUSDT_BINANCE)
-    ticks = wrangler.process(provider.read_csv_ticks("binance-ethusdt-trades.csv"))
-    engine.add_data(ticks)
+    ETHUSDT_BINANCE = TestInstrumentProvider.ethusdt_binance()
+    engine.add_instrument(ETHUSDT_BINANCE)
+```
 
-    # Define the venue for the backtest
+This can be done in quite a few ways :
+- Manually construct the actual `Instrument` object
+- Use one of the `TestInstrumentProviders`
+- Load from a `DataCatalog`
+- Load directly from an adapter (broker or exchange)
+
+---
+
+Add the actual data to the engine (in this example; some trade ticks via a `Wrangler`)
+
+```python
+    # Load DataFrame from CSV of trade ticks
+    provider = TestDataProvider()
+    raw = provider.read_csv_ticks("binance-ethusdt-trades.csv")
+
+    # Convert into Nautilus objects for a given instrument
+    wrangler = TradeTickDataWrangler(instrument=ETHUSDT_BINANCE)
+    ticks = wrangler.process(raw)
+    
+    # Add data to engine
+    engine.add_data(ticks)
+```
+
+An `Instrument` is tied to a venue; so nautilus knows this data for `ETHUSDT_BINANCE` belongs to the `BINANCE` venue (covered in next slide) 
+
+---
+
+Define a venue(s) (this will create a simulated exchange, accounts etc)
+
+```python
     BINANCE = Venue("BINANCE")
+
     engine.add_venue(
         venue=BINANCE,
         oms_type=OMSType.NETTING,
         account_type=AccountType.CASH,  # Spot cash account
         base_currency=None,  # Multi-currency account
-        starting_balances=[Money(1_000_000, USDT), Money(10, ETH)],
+        starting_balances=[
+            Money(1_000_000, USDT), Money(10, ETH)
+        ],
+    )
 ```
+
+_Nautilus checks data and instruments against venues, and will complain if you try and add a venue that does not have data, or define instruments without a venue_
 
 ---
 
-Configure strategy(s)
+Configure, create and add strategy(s)
 
 ```python
     config = EMACrossConfig(
@@ -435,25 +496,159 @@ Run the backtest (and optionally pull out some reports)
 
 --- 
 
-# BacktestRunConfig
+## BacktestRunConfig
 <!-- @brad? -->
 
-- A higher level config also exists `BacktestRunConfig` 
+* A higher level config object also exists; the `BacktestRunConfig`.
+* Basically the same options as above, but defined as `pydantic` models
+* _Requires using the DataCatalog however_
+* Can be more easily loaded from Dicts/JSON or other files
+___
+
+Example
+
+```python
+
+@pydantic.dataclasses.dataclass()
+class BacktestRunConfig(Partialable):
+    engine: Optional[BacktestEngineConfig] = None
+    venues: Optional[List[BacktestVenueConfig]] = None
+    data: Optional[List[BacktestDataConfig]] = None
+    batch_size_bytes: Optional[int] = None
+
+
+config = BacktestRunConfig(
+    engine=engine,
+    venues=[venue],
+    data=[data],
+)
+
+node = BacktestNode(configs=[config])
+results: List[BacktestResult] = node.run()
+
+```
 
 ---
-
-# Live Trading Config
 <!-- @chris -->
-<!-- Compare live trading config -->
+# Live Trading
 
----
+--- 
 <!-- @chris  -->
-# Running a backtest and live node
+## Running a Live instance
 
+* As per backtesting, there is a handful of config required to get running live
+* Very similar to backtesting setup, just pointing at live connections now
+    - Instead of `BacktestRunConfig` we use `TradingNodeConfig` object.
+* Walking through a live version of the backtest example above:
+---
+
+* Start to define the `TradingNodeConfig`, including live-only settings for timeouts etc
+* including a cache_database for persisting state (in memory or redis optional)
+
+```python
+
+config_node = TradingNodeConfig(
+    trader_id="TESTER-001",
+    log_level="INFO",
+    exec_engine={
+        "reconciliation_lookback_mins": 1440,
+    },
+    cache_database=CacheDatabaseConfig(type="in-memory"),
+    timeout_connection=5.0,
+    timeout_reconciliation=5.0,
+    timeout_portfolio=5.0,
+    timeout_disconnection=5.0,
+    timeout_post_stop=2.0,
+```
 
 ---
 
-# DEMO TIME - Pairs Trading
+Add data client(s);
+- This is the live source of market or other data
+
+```python
+    data_clients={
+        "FTX": FTXDataClientConfig(
+            api_key=None,  # "YOUR_FTX_API_KEY"
+            api_secret=None,  # "YOUR_FTX_API_SECRET"
+            subaccount=None,  # "YOUR_FTX_SUBACCOUNT"
+            us=False,  # If client is for FTX US
+            instrument_provider=InstrumentProviderConfig(load_all=True),
+        ),
+    },
+)
+```
+
+--- 
+
+Add (optionally) execution client(s); 
+ - this is where orders will be sent and
+ - Accounts, executiion events (fills, positions) received from
+
+```python
+    exec_clients={
+        "FTX": FTXExecClientConfig(
+            api_key=None,  # "YOUR_FTX_API_KEY"
+            api_secret=None,  # "YOUR_FTX_API_SECRET"
+            subaccount=None,  # "YOUR_FTX_SUBACCOUNT"
+            us=False,  # If client is for FTX US
+            instrument_provider=InstrumentProviderConfig(load_all=True),
+        ),
+    },
+```
+
+---
+
+With the completed config, create a `TradingNode` and add any strategies
+
+```python
+# Instantiate the node with a configuration
+node = TradingNode(config=config_node)
+
+# Configure your strategy
+strat_config = EMACrossConfig(
+    instrument_id="ETH-PERP.FTX",
+    bar_type="ETH-PERP.FTX-1-MINUTE-LAST-INTERNAL",
+    fast_ema_period=10,
+    slow_ema_period=20,
+    trade_size=Decimal("0.01"),
+    order_id_tag="001",
+)
+# Instantiate your strategy
+strategy = EMACross(config=strat_config)
+
+# Add your strategies, actors and modules
+node.trader.add_strategy(strategy)
+
+```
+
+---
+Finally, register factories for the clients and build/start the node
+
+```python
+
+
+# Register your client factories with the node (can take user defined factories)
+node.add_data_client_factory("FTX", FTXLiveDataClientFactory)
+node.add_exec_client_factory("FTX", FTXLiveExecClientFactory)
+node.build()
+
+# Stop and dispose of the node with SIGINT/CTRL+C
+if __name__ == "__main__":
+    try:
+        node.start()
+    finally:
+        node.dispose()
+```
+
+---
+<!-- @chris -->
+
+# Quick Demo EMA Cross
+
+---
+
+# Walkthrough - Pairs Trading
 <!-- @brad -->
 <!-- pairs trading intro -->
 <!-- walk through of pairs trading strategy -->
