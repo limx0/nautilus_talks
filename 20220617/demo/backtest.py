@@ -99,8 +99,8 @@ if __name__ == "__main__":
     [result] = main(
         catalog=catalog,
         instrument_ids=("SMH.NASDAQ", "SOXX.NASDAQ"),
-        log_level="INFO",
+        log_level="WARNING",
         persistence=False,
-        end_time="2020-01-10",
+        end_time="2020-06-01",
     )
     print(result.instance_id)

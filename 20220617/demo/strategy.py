@@ -9,7 +9,6 @@ from nautilus_trader.config import StrategyConfig
 from nautilus_trader.core.data import Data
 from nautilus_trader.core.message import Event
 from nautilus_trader.model.c_enums.order_side import OrderSideParser
-from nautilus_trader.model.c_enums.position_side import PositionSideParser
 from nautilus_trader.model.data.bar import Bar, BarSpecification
 from nautilus_trader.model.data.base import DataType
 from nautilus_trader.model.enums import OrderSide, PositionSide, TimeInForce
@@ -23,7 +22,7 @@ from nautilus_trader.model.identifiers import InstrumentId, PositionId
 from nautilus_trader.model.objects import Price, Quantity
 from nautilus_trader.model.position import Position
 from nautilus_trader.trading.strategy import Strategy
-from util import make_bar_type, one
+from util import make_bar_type
 
 
 class PairTraderConfig(StrategyConfig):
@@ -33,6 +32,7 @@ class PairTraderConfig(StrategyConfig):
     min_model_timedelta: datetime.timedelta = datetime.timedelta(days=1)
     trade_width_std_dev: float = 2.5
     bar_spec: str = "10-SECOND-LAST"
+    ib_long_short_margin_requirement = (0.25 + 0.17) / 2.0
 
 
 class PairTrader(Strategy):
@@ -81,7 +81,7 @@ class PairTrader(Strategy):
         if isinstance(event, (PositionOpened, PositionChanged)):
             position = self.cache.position(event.position_id)
             self._log.info(f"{position}", color=LogColor.YELLOW)
-            assert position.quantity < 80
+            assert position.quantity < 200  # Runtime check for bug in code
 
     def _on_model_update(self, model_update: ModelUpdate):
         self.model = model_update.model
@@ -156,11 +156,11 @@ class PairTrader(Strategy):
                 time_in_force=TimeInForce.IOC,
             )
             self._log.info(f"ENTRY {order.info()}", color=LogColor.BLUE)
-            self.submit_order(order, PositionId(f"source-{self._position_id}"), check_position_exists=False)
+            self.submit_order(order, PositionId(f"target-{self._position_id}"), check_position_exists=False)
 
     def _cap_volume(self, instrument_id: InstrumentId, max_quantity: int) -> int:
         position_quantity = 0
-        position = one(self.cache.positions(instrument_id=instrument_id, strategy_id=self.id))
+        position = self.current_position(instrument_id)
         if position is not None:
             position_quantity = position.quantity
         return max(0, max_quantity - position_quantity)
@@ -189,11 +189,11 @@ class PairTrader(Strategy):
     def _hedge_position(self, event: PositionEvent):
         # We've opened or changed position in our source instrument, we will likely need to hedge.
         target_position = self.cache.position(event.position_id)
-        hedge_quantity = int(round(target_position.quantity / self.hedge_ratio, 0))
+        hedge_quantity = int(round(target_position.quantity * self.hedge_ratio, 0))
         if isinstance(event, PositionClosed):
             # (possibly) Reducing our position in the target instrument
-            source_position: Position = one(self.cache.positions(instrument_id=self.source_id, strategy_id=self.id))
-            if source_position.is_closed:
+            source_position: Position = self.current_position(self.source_id)
+            if source_position is not None and source_position.is_closed:
                 if source_position.id.value not in self._summarised:
                     self._summarise_position()
                     self._position_id += 1
@@ -222,7 +222,7 @@ class PairTrader(Strategy):
             quantity=Quantity.from_int(quantity),
         )
         self._log.info(f"ENTRY HEDGE {order.info()}", color=LogColor.BLUE)
-        self.submit_order(order, PositionId(f"target-{self._position_id}"), check_position_exists=False)
+        self.submit_order(order, PositionId(f"source-{self._position_id}"), check_position_exists=False)
         return order
 
     def _check_for_exit(self, timer=None, bar: Optional[Bar] = None):
@@ -248,7 +248,7 @@ class PairTrader(Strategy):
             return
 
     def _exit_position(self, bar: Bar):
-        position: Position = one(self.cache.positions(instrument_id=self.target_id, strategy_id=self.id))
+        position: Position = self.current_position(self.target_id)
         if position is not None:
             if position.is_closed:
                 raise RepeatedEventComplete()
@@ -267,23 +267,48 @@ class PairTrader(Strategy):
                     quantity=position.quantity,
                 )
                 self._log.info(f"CLOSE {order.info()}", color=LogColor.BLUE)
-                self.submit_order(order, PositionId(f"source-{self._position_id}"))
+                self.submit_order(order, PositionId(f"target-{self._position_id}"))
+
+    def current_position(self, instrument_id: InstrumentId) -> Optional[Position]:
+        try:
+            side = {self.source_id: "source", self.target_id: "target"}[instrument_id]
+            return self.cache.position(PositionId(f"{side}-{self._position_id}"))
+        except AssertionError:
+            return None
 
     def _opposite_side(self, side: PositionSide):
-        return {PositionSide.LONG: OrderSide.SELL, PositionSide.SHORT: OrderSide.BUY}[side]
+        return {PositionSide.LONG: OrderSide.SELL, PositionSide.SHORT: OrderSide.BUY, PositionSide.FLAT: None}[side]
 
     def _summarise_position(self):
-        src_pos: Position = one(self.cache.positions(instrument_id=self.source_id, strategy_id=self.id))
-        tgt_pos: Position = one(self.cache.positions(instrument_id=self.target_id, strategy_id=self.id))
+        src_pos: Position = self.current_position(instrument_id=self.source_id)
+        tgt_pos: Position = self.current_position(instrument_id=self.target_id)
         self.log.info("Hedge summary:", color=LogColor.GREEN)
         self.log.info(
-            f"source: {OrderSideParser.to_str_py(src_pos.events[0].order_side)} {src_pos.peak_qty}, {src_pos.avg_px_open=}, {src_pos.avg_px_close=}, {src_pos.realized_return=:0.4f}",
+            f"target: {OrderSideParser.to_str_py(tgt_pos.events[0].order_side)} {tgt_pos.peak_qty}, "
+            f"{tgt_pos.avg_px_open=}, {tgt_pos.avg_px_close=}, {tgt_pos.realized_return=:0.4f}",
             color=LogColor.GREEN,
         )
         self.log.info(
-            f"target: {OrderSideParser.to_str_py(tgt_pos.events[0].order_side)} {tgt_pos.peak_qty}, {tgt_pos.avg_px_open=}, {tgt_pos.avg_px_close=}, {tgt_pos.realized_return=:0.4f}",
+            f"source: {OrderSideParser.to_str_py(src_pos.events[0].order_side)} {src_pos.peak_qty}, "
+            f"{src_pos.avg_px_open=}, {src_pos.avg_px_close=}, {src_pos.realized_return=:0.4f}",
             color=LogColor.GREEN,
         )
+
+        def peak_notional(pos):
+            entry_order = self.cache.order(pos.events[0].client_order_id)
+            return pos.peak_qty * {OrderSide.BUY: 1.0, OrderSide.SELL: -1.0}[entry_order.side] * pos.avg_px_open
+
+        tgt_notional = peak_notional(tgt_pos)
+        src_notional = peak_notional(src_pos)
+        margin_requirements = (abs(tgt_notional) + abs(src_notional)) * self.config.ib_long_short_margin_requirement
+        pnl = src_pos.realized_pnl + tgt_pos.realized_pnl
+        return_bps = float(pnl) / margin_requirements * 10_000
+        self.log.warning(
+            f"Spread=({tgt_notional:.0f}/{src_notional:.0f}), total_margin_required={margin_requirements:0.1f} "
+            f"PNL=${pnl}, margin_return={return_bps:0.1f}bps",
+            color=LogColor.GREEN if pnl > 0 else LogColor.RED,
+        )
+
         self._summarised.add(src_pos.id.value)
         print()
 
