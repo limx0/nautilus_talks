@@ -302,7 +302,7 @@ def on_event(self, event: Event):
 
 ## Adapters
 
-* Convert external data or events into nautilus format
+* Convert external data or events into Nautilus format
 * Split into:
     * `DataClient` - quotes, trades, tweets, etc
     * `ExecutionClient` - order fills, positions, account balance updates, etc
@@ -334,7 +334,7 @@ class TwitterDataClient(LiveDataClient):
             if response_line:
                 json_resp = json.loads(response_line)
                 tweet = Tweet(text=json_resp['text'], ts_init=json_resp['timestamp'])
-                # Feed data to nautilus engine
+                # Feed data to Nautilus engine
                 self._handle_data(data=tweet)
             await asyncio.sleep(0.1)
 ```
@@ -350,7 +350,7 @@ class TwitterDataClient(LiveDataClient):
 
 ---
 ### Wranglers
-* The quick choice; load nautilus objects from your own persistent data source 
+* The quick choice; load Nautilus objects from your own persistent data source 
     - CSV, JSON, Parquet, Pandas
 * Objects are created on the fly
 * Suitable while experimenting or your data is small (hourly / EOD for example)
@@ -358,7 +358,7 @@ class TwitterDataClient(LiveDataClient):
 ---
 
 ### DataCatalog
-* The performant choice; nautilus will write your data into Parquet files optimised for reading
+* The performant choice; Nautilus will write your data into Parquet files optimised for reading
 * Objects basically loaded from "file" as is (minimal conversions required)
 * Uses the excellent `fsspec` library as a base (supports sftp/s3/gcs/asdl/etc)
 * More improvements to come with rust ecosystem (zero-copy loading objects straight into memory)
@@ -429,7 +429,7 @@ Add the actual data to the engine (in this example; some trade ticks via a `Wran
     engine.add_data(ticks)
 ```
 
-An `Instrument` is tied to a venue; so nautilus knows this data for `ETHUSDT_BINANCE` belongs to the `BINANCE` venue (covered in next slide) 
+An `Instrument` is tied to a venue; so Nautilus knows this data for `ETHUSDT_BINANCE` belongs to the `BINANCE` venue (covered in next slide) 
 
 ---
 
