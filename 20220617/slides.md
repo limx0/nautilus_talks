@@ -646,6 +646,8 @@ _Factory pattern here so downstream packages can easily register new custom adap
 ---
 
 # Walkthrough - Pairs Trading Strategy
+- Intro to pairs trading
+- Pairs Trading Strategy walk-through
 <!-- @brad -->
 <!-- pairs trading intro -->
 <!-- walk through of pairs trading strategy -->
