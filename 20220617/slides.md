@@ -28,7 +28,8 @@ marp: true
 * A long fascination and interest in financial markets, programming and computing
 * Started writing a trading platform as MetaTrader 4, C Trader, NinjaTrader didn’t meet requirements
 * NautilusTrader originally written in C#
-* Started working for an FX trading firm based in Singapore focusing on ML, and adapted to their operation
+* Started working for an FX trading firm based in Singapore focusing on ML
+* Currently a software engineer for a market data vendor
 
 ---
 <!-- @brad -->
@@ -86,6 +87,7 @@ The major benefits of the platform are:
 * **Reduced operational risk** - risk management functionality, logical correctness and type safety
 * **Highly extendable** - message bus, custom components and actors, custom data, custom adapters
 * **Open source** - NautilusTrader is fully open source software
+
 ---
 
 **Performance**
@@ -134,7 +136,7 @@ The major benefits of the platform are:
 
 * NautilusTrader is and will remain open source software
 * Safely run your proprietary code & data on premises
-* Cloud offering (slowly) in the works, focusing on
+* Cloud offering in the works, focusing on
     - Scaling backtesting
     - Visualisation and monitoring
     - Easy deployment of live instances
@@ -146,13 +148,16 @@ The major benefits of the platform are:
 
 ---
 
-![bg right width:700px](architecture-overview.png)
 * Both a framework for trading systems, with several system implementations for backtesting, live trading and even a sandbox environment on the way (live data with simulated execution)
 * Ports and adapters architecture, which adopted the '_engines architecture_' of the distributed C# system
 * Highly modular and very well tested with a suite of over 3500 unit, integration and acceptance tests
 * Loose coupling of the system components via a highly efficient message bus and single cache has allowed us to move quite quickly with changes and improvements
 * Components interact using various messaging patterns through the message bus (Pub/Sub, Req/Rep or point-to-point) → meaning they don’t need knowledge of, or direct references/dependencies on each other
 * The message bus (written in Cython) is highly performant, with benchmarks between direct method calls or message bus being nearly identical (slightly in favor of direct calls). The loose coupling makes this worth it
+
+---
+
+![bg center width:850px](architecture-overview.png)
 
 ---
 
@@ -179,7 +184,7 @@ The major benefits of the platform are:
 * Accounts → cash and margin
 * Positions → netting and hedging Order-Management-System, realised, unrealised pnls
 * Portfolio component → query positions, values
-* Persistence → every pieve of data and event (live and backtest) can be persisted automatically
+* Persistence → every piece of data, and every event (live and backtest) can be persisted automatically
 * CacheDatabase → store execution state (orders) and strategy state in-memory or Redis
 
 ---
