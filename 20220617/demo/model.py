@@ -109,7 +109,7 @@ class PredictedPriceActor(Actor):
         )
 
     def _predict(self, bar: Bar):
-        if self.model is not None and bar.type.instrument_id == self.source_id:
+        if self.model is not None and bar.bar_type.instrument_id == self.source_id:
             pred = self.model.predict([[bar.close]])[0][0]
             prediction = Prediction(instrument_id=self.target_id, prediction=pred, ts_init=bar.ts_init)
             self.publish_data(

@@ -2,10 +2,10 @@ from nautilus_trader.adapters.interactive_brokers.config import InteractiveBroke
 from nautilus_trader.adapters.interactive_brokers.factories import (
     InteractiveBrokersLiveDataClientFactory,
 )
-from nautilus_trader.config import InstrumentProviderConfig
-from nautilus_trader.config import TradingNodeConfig
+from nautilus_trader.config import InstrumentProviderConfig, TradingNodeConfig
 from nautilus_trader.live.node import TradingNode
 from strategy import PairTrader, PairTraderConfig
+
 
 # Configure the trading node
 config_node = TradingNodeConfig(
@@ -24,7 +24,7 @@ config_node = TradingNodeConfig(
                         )
                     }.items()
                 ),
-            )
+            ),
         ),
     },
     # exec_clients={

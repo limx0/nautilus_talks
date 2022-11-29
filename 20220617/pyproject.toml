@@ -5,9 +5,8 @@ description = ""
 authors = ["Bradley McElroy <bradley.mcelroy@live.com>"]
 
 [tool.poetry.dependencies]
-# Stuck on 3.9 due to 3.10/cython/numpy/scipy bug https://github.com/numpy/numpy/issues/21008
-python = ">=3.9,<3.10"
-nautilus-trader = { version = "^1.147.1", extras=["ib"] }
+python = ">=3.9,<3.11"
+nautilus-trader = { version = "^1.160.0", extras=["ib"] }
 
 invoke = "^1.7.1"
 scikit-learn = "^1.1.1"

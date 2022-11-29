@@ -110,7 +110,7 @@ class PairTrader(Strategy):
             self._current_edge = close_target - self.prediction
 
     def _check_for_entry(self, bar: Bar):
-        if bar.type.instrument_id == self.target_id and self.prediction is not None:
+        if bar.bar_type.instrument_id == self.target_id and self.prediction is not None:
             # Send in orders
             quote_target: Bar = self.cache.bar(make_bar_type(self.target_id, bar_spec=self.bar_spec))
             if not quote_target:
@@ -157,7 +157,7 @@ class PairTrader(Strategy):
                 time_in_force=TimeInForce.IOC,
             )
             self._log.info(f"ENTRY {order.info()}", color=LogColor.BLUE)
-            self.submit_order(order, PositionId(f"target-{self._position_id}"), check_position_exists=False)
+            self.submit_order(order, PositionId(f"target-{self._position_id}"))
 
     def _cap_volume(self, instrument_id: InstrumentId, max_quantity: int) -> int:
         position_quantity = 0
@@ -174,7 +174,7 @@ class PairTrader(Strategy):
         try:
             self._hedge_position(event)
             # Keep scheduling this method to run until we're hedged
-            if timer_name in self.clock.timer_names():
+            if timer_name in self.clock.timer_names:
                 self.clock.cancel_timer(timer_name)
             self.clock.set_time_alert(
                 name=timer_name,
@@ -183,7 +183,7 @@ class PairTrader(Strategy):
             )
         except RepeatedEventComplete:
             # Hedge is complete, return
-            if timer_name in self.clock.timer_names():
+            if timer_name in self.clock.timer_names:
                 self.clock.cancel_timer(timer_name)
             return
 
@@ -191,6 +191,7 @@ class PairTrader(Strategy):
         # We've opened or changed position in our source instrument, we will likely need to hedge.
         target_position = self.cache.position(event.position_id)
         hedge_quantity = int(round(target_position.quantity * self.hedge_ratio, 0))
+        quantity = 0
         if isinstance(event, PositionClosed):
             # (possibly) Reducing our position in the target instrument
             source_position: Position = self.current_position(self.source_id)
@@ -198,8 +199,8 @@ class PairTrader(Strategy):
                 if source_position.id.value not in self._summarised:
                     self._summarise_position()
                     self._position_id += 1
-            quantity = source_position.quantity
-            side = self._opposite_side(source_position.side)
+                quantity = source_position.quantity
+                side = self._opposite_side(source_position.side)
         else:
             # (possibly) Increasing our position in hedge instrument
             side = self._opposite_side(target_position.side)
@@ -223,7 +224,7 @@ class PairTrader(Strategy):
             quantity=Quantity.from_int(quantity),
         )
         self._log.info(f"ENTRY HEDGE {order.info()}", color=LogColor.BLUE)
-        self.submit_order(order, PositionId(f"source-{self._position_id}"), check_position_exists=False)
+        self.submit_order(order, PositionId(f"source-{self._position_id}"))
         return order
 
     def _check_for_exit(self, timer=None, bar: Optional[Bar] = None):
@@ -235,7 +236,7 @@ class PairTrader(Strategy):
         try:
             self._exit_position(bar=bar)
             # Keep scheduling this method to run until we're exited
-            if timer_name in self.clock.timer_names():
+            if timer_name in self.clock.timer_names:
                 self.clock.cancel_timer(timer_name)
             self.clock.set_time_alert(
                 name=timer_name,
@@ -244,7 +245,7 @@ class PairTrader(Strategy):
             )
         except RepeatedEventComplete:
             # Hedge is complete, return
-            if timer_name in self.clock.timer_names():
+            if timer_name in self.clock.timer_names:
                 self.clock.cancel_timer(timer_name)
             return
 

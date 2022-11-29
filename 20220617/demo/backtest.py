@@ -14,7 +14,7 @@ from nautilus_trader.config import (
     StreamingConfig,
 )
 from nautilus_trader.model.data.bar import Bar
-from nautilus_trader.persistence.catalog import DataCatalog
+from nautilus_trader.persistence.catalog import ParquetDataCatalog as DataCatalog
 
 
 CATALOG = DataCatalog(str(pathlib.Path(__file__).parent.joinpath("catalog")))
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     [result] = main(
         catalog=catalog,
         instrument_ids=("SMH.NASDAQ", "SOXX.NASDAQ"),
-        log_level="WARNING",
+        log_level="INFO",
         persistence=False,
         end_time="2020-06-01",
     )
