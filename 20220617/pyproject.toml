@@ -6,7 +6,7 @@ authors = ["Bradley McElroy <bradley.mcelroy@live.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<=3.11"
-nautilus-trader = { version = "^1.160.0", extras=["ib"] }
+nautilus-trader = { version = "^1.169.0", extras=["ib"] }
 
 invoke = "^1.7.1"
 scikit-learn = "^1.1.1"
