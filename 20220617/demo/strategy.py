@@ -9,7 +9,6 @@ from nautilus_trader.config import StrategyConfig
 from nautilus_trader.core.data import Data
 from nautilus_trader.core.datetime import unix_nanos_to_dt
 from nautilus_trader.core.message import Event
-from nautilus_trader.model.c_enums.order_side import OrderSideParser
 from nautilus_trader.model.data.bar import Bar, BarSpecification
 from nautilus_trader.model.data.base import DataType
 from nautilus_trader.model.enums import OrderSide, PositionSide, TimeInForce
@@ -34,7 +33,6 @@ class PairTraderConfig(StrategyConfig):
     trade_width_std_dev: float = 2.5
     bar_spec: str = "10-SECOND-LAST"
     ib_long_short_margin_requirement = (0.25 + 0.17) / 2.0
-
 
 class PairTrader(Strategy):
     def __init__(self, config: PairTraderConfig):
@@ -125,14 +123,14 @@ class PairTrader(Strategy):
                 max_volume = int(self.config.notional_trade_size_usd / market_right)
                 capped_volume = self._cap_volume(instrument_id=self.target_id, max_quantity=max_volume)
                 price = self.prediction - self._current_required_edge
-                self._log.debug(f"{OrderSideParser.to_str_py(side)} {max_volume=} {capped_volume=} {price=}")
+                self._log.debug(f"{side} {max_volume=} {capped_volume=} {price=}")
             elif self._current_edge < -self._current_required_edge:
                 # Our theoretical price is below the market; we want to sell
                 side = OrderSide.SELL
                 max_volume = int(self.config.notional_trade_size_usd / market_right)
                 capped_volume = self._cap_volume(instrument_id=self.target_id, max_quantity=max_volume)
                 price = self.prediction + self._current_required_edge
-                self._log.debug(f"{OrderSideParser.to_str_py(side)} {max_volume=} {capped_volume=} {price=}")
+                self._log.debug(f"{side} {max_volume=} {capped_volume=} {price=}")
             else:
                 return
             if capped_volume == 0:
@@ -141,7 +139,7 @@ class PairTrader(Strategy):
                     self.cancel_order(order=order)
                 return
             self._log.info(
-                f"Entry opportunity: {OrderSideParser.to_str_py(side)} market={market_right}, "
+                f"Entry opportunity: {side} market={market_right}, "
                 f"theo={self.prediction:0.3f} {capped_volume=} ({self._current_edge=:0.3f}, "
                 f"{self._current_required_edge=:0.3f})",
                 color=LogColor.GREEN,
