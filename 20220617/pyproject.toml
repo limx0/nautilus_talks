@@ -5,7 +5,7 @@ description = ""
 authors = ["Bradley McElroy <bradley.mcelroy@live.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11"
+python = ">=3.9,<=3.11"
 nautilus-trader = { version = "^1.160.0", extras=["ib"] }
 
 invoke = "^1.7.1"

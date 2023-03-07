@@ -1,9 +1,9 @@
 import pathlib
 from typing import Tuple
 
-from nautilus_trader.backtest.engine import CacheConfig
 from nautilus_trader.backtest.node import BacktestNode
 from nautilus_trader.config import (
+    CacheConfig,
     BacktestDataConfig,
     BacktestEngineConfig,
     BacktestRunConfig,
@@ -60,7 +60,7 @@ def main(
         bypass_logging=bypass_logging,
         log_level=log_level,
         streaming=StreamingConfig(catalog_path=str(catalog.path)) if persistence else None,
-        risk_engine=RiskEngineConfig(max_order_rate="1000/00:00:01"),  # type: ignore
+        risk_engine=RiskEngineConfig(max_order_submit_rate="1000/00:00:01"),  # type: ignore
         strategies=[strategy],
         actors=[prediction],
     )
