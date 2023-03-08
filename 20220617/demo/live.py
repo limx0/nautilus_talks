@@ -1,10 +1,11 @@
+import msgspec.json
 from nautilus_trader.adapters.interactive_brokers.config import (
     InteractiveBrokersDataClientConfig,
-    InteractiveBrokersExecClientConfig
+    InteractiveBrokersExecClientConfig,
 )
 from nautilus_trader.adapters.interactive_brokers.factories import (
     InteractiveBrokersLiveDataClientFactory,
-    InteractiveBrokersLiveExecClientFactory
+    InteractiveBrokersLiveExecClientFactory,
 )
 from nautilus_trader.config import InstrumentProviderConfig, TradingNodeConfig
 from nautilus_trader.live.node import TradingNode
@@ -24,13 +25,11 @@ config_node = TradingNodeConfig(
             gateway_port=4002,
             instrument_provider=InstrumentProviderConfig(
                 load_all=True,
-                filters=tuple(
-                    {
-                        "filters": (
-                            tuple({"secType": "STK", "symbol": "SEC0", "exchange": "BVME.ETF"}.items()),
-                            tuple({"secType": "STK", "symbol": "SMH", "exchange": "BVME.ETF"}.items()),
-                        )
-                    }.items()
+                filters=msgspec.json.encode(
+                    [
+                        {"secType": "STK", "symbol": "SEC0", "exchange": "BVME.ETF"},
+                        {"secType": "STK", "symbol": "SMH", "exchange": "BVME.ETF"},
+                    ]
                 ),
             ),
         ),
