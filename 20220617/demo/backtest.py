@@ -3,27 +3,25 @@ from typing import Tuple
 
 from nautilus_trader.backtest.node import BacktestNode
 from nautilus_trader.common.config import LoggingConfig
-from nautilus_trader.config import (
-    BacktestDataConfig,
-    BacktestEngineConfig,
-    BacktestRunConfig,
-    BacktestVenueConfig,
-    CacheConfig,
-    ImportableActorConfig,
-    ImportableStrategyConfig,
-    RiskEngineConfig,
-    StreamingConfig,
-)
+from nautilus_trader.config import BacktestDataConfig
+from nautilus_trader.config import BacktestEngineConfig
+from nautilus_trader.config import BacktestRunConfig
+from nautilus_trader.config import BacktestVenueConfig
+from nautilus_trader.config import CacheConfig
+from nautilus_trader.config import ImportableActorConfig
+from nautilus_trader.config import ImportableStrategyConfig
+from nautilus_trader.config import RiskEngineConfig
+from nautilus_trader.config import StreamingConfig
 from nautilus_trader.model.identifiers import InstrumentId
-from nautilus_trader.persistence.catalog import ParquetDataCatalog as DataCatalog
+from nautilus_trader.persistence.catalog import ParquetDataCatalog
 
 
-CATALOG = DataCatalog(str(pathlib.Path(__file__).parent.joinpath("catalog")))
+CATALOG = ParquetDataCatalog(str(pathlib.Path(__file__).parent.joinpath("catalog")))
 
 
 def main(
     instrument_ids: Tuple[str, str],
-    catalog: DataCatalog,
+    catalog: ParquetDataCatalog,
     notional_trade_size_usd: int = 10_000,
     start_time: str = None,
     end_time: str = None,
@@ -92,18 +90,18 @@ def main(
 
     run_config = BacktestRunConfig(engine=engine, venues=venues, data=data)
     node = BacktestNode(configs=[run_config])
-    return node.run()
+    node.run()
 
 
 if __name__ == "__main__":
     # typer.run(main)
     catalog = CATALOG
-    assert not catalog.instruments(), "Couldn't load instruments, have you run `poetry run inv extract-catalog`?"
-    [result] = main(
+    assert catalog.instruments(), "Couldn't load instruments, have you run `poetry run inv extract-catalog`?"
+    main(
         catalog=catalog,
         instrument_ids=("SMH.NASDAQ", "SOXX.NASDAQ"),
         log_level="INFO",
-        persistence=False,
+        persistence=True,
         end_time="2020-06-01",
     )
-    print(result.instance_id)
+    # print(result.instance_id)

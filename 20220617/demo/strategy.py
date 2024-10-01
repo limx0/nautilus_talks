@@ -4,14 +4,13 @@ from typing import Optional
 
 import pandas as pd
 from model import ModelUpdate, Prediction
-from nautilus_trader.adapters.betfair.common import OrderSideParser
+# from nautilus_trader.adapters.betfair.common import OrderSideParser
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.config import StrategyConfig
 from nautilus_trader.core.data import Data
 from nautilus_trader.core.datetime import unix_nanos_to_dt
 from nautilus_trader.core.message import Event
-from nautilus_trader.model.data.bar import Bar, BarSpecification
-from nautilus_trader.model.data.base import DataType
+from nautilus_trader.model.data import Bar, BarSpecification, DataType
 from nautilus_trader.model.enums import OrderSide, PositionSide, TimeInForce
 from nautilus_trader.model.events.position import (
     PositionChanged,
@@ -197,7 +196,7 @@ class PairTrader(Strategy):
             source_position: Position = self.current_position(self.source_id)
             if source_position is not None and source_position.is_closed:
                 if source_position.id.value not in self._summarised:
-                    self._summarise_position()
+                    # self._summarise_position()
                     self._position_id += 1
                 quantity = source_position.quantity
                 side = self._opposite_side(source_position.side)
@@ -281,20 +280,20 @@ class PairTrader(Strategy):
     def _opposite_side(self, side: PositionSide):
         return {PositionSide.LONG: OrderSide.SELL, PositionSide.SHORT: OrderSide.BUY, PositionSide.FLAT: None}[side]
 
-    def _summarise_position(self):
-        src_pos: Position = self.current_position(instrument_id=self.source_id)
-        tgt_pos: Position = self.current_position(instrument_id=self.target_id)
-        self.log.warning("Hedge summary:", color=LogColor.BLUE)
-        self.log.warning(
-            f"target: {OrderSideParser.to_str_py(tgt_pos.events[0].order_side)} {tgt_pos.peak_qty}, "
-            f"{tgt_pos.avg_px_open=}, {tgt_pos.avg_px_close=}, {tgt_pos.realized_return=:0.4f}",
-            color=LogColor.NORMAL,
-        )
-        self.log.warning(
-            f"source: {OrderSideParser.to_str_py(src_pos.events[0].order_side)} {src_pos.peak_qty}, "
-            f"{src_pos.avg_px_open=}, {src_pos.avg_px_close=}, {src_pos.realized_return=:0.4f}",
-            color=LogColor.NORMAL,
-        )
+    # def _summarise_position(self):
+    #     src_pos: Position = self.current_position(instrument_id=self.source_id)
+    #     tgt_pos: Position = self.current_position(instrument_id=self.target_id)
+    #     self.log.warning("Hedge summary:", color=LogColor.BLUE)
+    #     self.log.warning(
+    #         f"target: {OrderSideParser.to_str_py(tgt_pos.events[0].order_side)} {tgt_pos.peak_qty}, "
+    #         f"{tgt_pos.avg_px_open=}, {tgt_pos.avg_px_close=}, {tgt_pos.realized_return=:0.4f}",
+    #         color=LogColor.NORMAL,
+    #     )
+    #     self.log.warning(
+    #         f"source: {OrderSideParser.to_str_py(src_pos.events[0].order_side)} {src_pos.peak_qty}, "
+    #         f"{src_pos.avg_px_open=}, {src_pos.avg_px_close=}, {src_pos.realized_return=:0.4f}",
+    #         color=LogColor.NORMAL,
+    #     )
 
         def peak_notional(pos):
             entry_order = self.cache.order(pos.events[0].client_order_id)

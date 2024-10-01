@@ -1,8 +1,8 @@
 from typing import List
 
 import pandas as pd
-from nautilus_trader.core.datetime import nanos_to_secs
-from nautilus_trader.model.data.bar import Bar, BarType
+from nautilus_trader.core.nautilus_pyo3 import nanos_to_secs
+from nautilus_trader.model.data import Bar, BarSpecification, DataType, BarType
 from nautilus_trader.model.enums import AggregationSource
 from nautilus_trader.model.identifiers import InstrumentId
 

@@ -1,12 +1,13 @@
 from typing import Optional
 
 import pandas as pd
-from nautilus_trader.common.actor import Actor, ActorConfig
+from nautilus_trader.common.actor import Actor
+from nautilus_trader.common.config import ActorConfig
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.core.data import Data
-from nautilus_trader.core.datetime import secs_to_nanos, unix_nanos_to_dt
-from nautilus_trader.model.data.bar import Bar, BarSpecification
-from nautilus_trader.model.data.base import DataType
+from nautilus_trader.core.nautilus_pyo3 import secs_to_nanos
+from nautilus_trader.core.datetime import unix_nanos_to_dt
+from nautilus_trader.model.data import Bar, BarSpecification, DataType
 from nautilus_trader.model.identifiers import InstrumentId
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
@@ -119,13 +120,15 @@ class PredictedPriceActor(Actor):
 
 class ModelUpdate(Data):
     def __init__(
-        self,
-        model: LinearRegression,
-        hedge_ratio: float,
-        std_prediction: float,
-        ts_init: int,
+            self,
+            model: LinearRegression,
+            hedge_ratio: float,
+            std_prediction: float,
+            ts_init: int,
     ):
-        super().__init__(ts_init=ts_init, ts_event=ts_init)
+        # super().__init__(ts_init=ts_init, ts_event=ts_init)
+        super().__init__()
+        # self.ts_init = ts_init,
         self.model = model
         self.hedge_ratio = hedge_ratio
         self.std_prediction = std_prediction
@@ -133,11 +136,13 @@ class ModelUpdate(Data):
 
 class Prediction(Data):
     def __init__(
-        self,
-        instrument_id: str,
-        prediction: float,
-        ts_init: int,
+            self,
+            instrument_id: str,
+            prediction: float,
+            ts_init: int,
     ):
-        super().__init__(ts_init=ts_init, ts_event=ts_init)
+        # super().__init__(ts_init=ts_init, ts_event=ts_init)
+        super().__init__()
+        # self.ts_init = ts_init,
         self.instrument_id = instrument_id
         self.prediction = prediction
